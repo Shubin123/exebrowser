@@ -43,7 +43,9 @@
 //                Wine. REQUIRED for DOS-era games: Boxedwine vm86-faults on DOS
 //                exes. The zip needs .jsdos/dosbox.conf (autoexec picks the
 //                entry EXE — the `entry` field is ignored for DOS pages).
-//   iframeUrl    external playable iframe (e.g. freeciv) — replaces both runtimes
+//   iframeUrl    playable iframe (e.g. freeciv, the logic puzzles) — replaces both runtimes
+//   iframeHeight optional CSS height for the iframe box (default: 16:10 aspect)
+//   iframeBg     optional background colour behind the iframe (default #000)
 //   hostable     informational only; the honest "is playable" signal is a
 //                non-empty appUrl/iframeUrl (isPlayable() below)
 //   skipGenerate true → entry appears in the /run/ hub + sitemap but its page
@@ -89,7 +91,7 @@
 //                screenshot/NEW-badge sort decayed into raw JSON order once
 //                every addedDate aged out of the 14-day window.
 //   categories   array from the closed set used by the filter chips: Shooters,
-//                Platformers, Action, Puzzle & strategy, Educational, Racing & sports,
+//                Platformers, Action, Puzzle & strategy, Logic puzzles, Educational, Racing & sports,
 //                Pinball, Apps & tools. ("Free & complete" is derived from
 //                `fullyFree`, not written here.) Chip order lives in two
 //                places — this file and gen-home-grid.mjs — and must match.
@@ -279,8 +281,13 @@ ${items}
 
 function embedBlock(p) {
   if (p.iframeUrl) {
+    // Most framed games are 16:10. Square ones (the logic puzzles) set
+    // iframeHeight to a CSS height instead, so a tall grid isn't squashed.
+    const box = p.iframeHeight
+      ? `height:${p.iframeHeight};background:${p.iframeBg || "#000"};`
+      : "padding-bottom:62.5%;background:#000;";
     return `
-    <div class="iframe-embed-wrap" style="position:relative;width:100%;padding-bottom:62.5%;background:#000;border-radius:4px;overflow:hidden;">
+    <div class="iframe-embed-wrap" style="position:relative;width:100%;${box}border-radius:4px;overflow:hidden;">
       <iframe src="${esc(p.iframeUrl)}"
               style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;"
               allowfullscreen

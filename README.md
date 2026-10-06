@@ -80,6 +80,15 @@ node scripts/build-librequake-data.mjs   # public/apps/librequake/id1/ (~79 MB)
 node scripts/build-warzone2100-data.mjs  # public/apps/warzone2100/ parts, wasm, music (~87 MB)
 ```
 
+### The logic puzzles
+
+`public/apps/puzzles/` is Simon Tatham's Portable Puzzle Collection (MIT),
+built from a pinned, sha-checked source tarball by
+`node scripts/build-puzzles.mjs` (needs emcc and cmake). The output is small
+and committed. Each frame uses the collection's fit-to-container mode, so a
+puzzle fills its iframe at any width; its `/run/` page sets `iframeHeight`
+rather than the default 16:10 box.
+
 ### Adding a DOS game
 
 Every hosted title carries a `provenance` in `app-pages.json`: `clean`,

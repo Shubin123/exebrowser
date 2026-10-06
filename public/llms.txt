@@ -4,7 +4,7 @@
 > install, no account, nothing uploaded. Games run client-side via DOSBox or
 > Wine compiled to WebAssembly, and DOS save games persist in the browser.
 
-99 titles are hosted and playable instantly. Everything hosted here is
+138 titles are hosted and playable instantly. Everything hosted here is
 open-source, freeware, or shareware whose licence permits free redistribution;
 commercial titles are compatibility guides only, where you supply your own copy.
 
@@ -109,6 +109,45 @@ commercial titles are compatibility guides only, where you supply your own copy.
 - [Temple of Kroz](https://exebrowser.com/run/temple-of-kroz/): Play Temple of Kroz in your browser: a 1990 Super Kroz episode by Scott Miller. Text-mode dungeons, whips, gems and the temple at the bottom.
 - [The Final Crusade of Kroz](https://exebrowser.com/run/final-crusade-of-kroz/): Play The Final Crusade of Kroz in your browser: the 1990 finale of Apogee's Super Kroz trilogy by Scott Miller. Text-mode monsters, gems and puzzles.
 - [The Lost Adventures of Kroz](https://exebrowser.com/run/lost-adventures-of-kroz/): Play The Lost Adventures of Kroz in your browser: the largest Kroz game, with 75 text-mode levels of monsters, gems and puzzles. Free, no download.
+- [Sudoku (Solo)](https://exebrowser.com/run/sudoku/): Play Sudoku free in your browser: endless generated puzzles from Trivial to Unreasonable, plus Jigsaw, Killer and X variants. Pencil marks and undo.
+- [Nonogram (Pattern)](https://exebrowser.com/run/nonogram/): Play nonograms free in your browser: shade the grid so each row and column matches its run lengths. Sizes from 10×10 to 30×30, new puzzle every time.
+- [Calcudoku (Keen)](https://exebrowser.com/run/keen-puzzle/): Play Calcudoku free in your browser: fill a Latin square so each cage hits its sum, product, difference or quotient. 3×3 to 9×9, Easy to Unreasonable.
+- [Number loop puzzle (Loopy)](https://exebrowser.com/run/loopy-puzzle/): Play the number loop puzzle free in your browser: draw a single closed loop so each number has that many sides on it. Square, hexagon and Penrose grid
+- [Bridges puzzle (Bridges)](https://exebrowser.com/run/bridges-puzzle/): Play the Bridges puzzle free in your browser: link numbered islands with straight bridges so every island has its count and all are connected. 7×7 to 
+- [Futoshiki (Unequal)](https://exebrowser.com/run/futoshiki/): Play Futoshiki free in your browser: fill a Latin square that obeys every greater-than sign. 4×4 to 7×7, Easy to Extreme, plus the Adjacent variant.
+- [Skyscrapers (Towers)](https://exebrowser.com/run/skyscrapers-puzzle/): Play Skyscrapers free in your browser: place towers of every height once per row and column so the edge clues count the towers visible. 4×4 to 9×9.
+- [Light Up puzzle (Light Up)](https://exebrowser.com/run/light-up-puzzle/): Play Light Up free in your browser: place bulbs so every white square is lit, no bulb shines on another, and numbered walls get their count. 7×7 to 14
+- [Network tile-rotation puzzle (Net)](https://exebrowser.com/run/net-puzzle/): Play Net free in your browser: rotate scrambled pipe tiles until every square joins one network with no loops. 5×5 to 13×11, with wrap-around boards.
+- [Spiral Galaxies puzzle (Galaxies)](https://exebrowser.com/run/galaxies-puzzle/): Play Spiral Galaxies free in your browser: divide the grid into regions that are each symmetric around their single dot. 7×7 to 15×15, two difficultie
+- [Arrow path puzzle (Signpost)](https://exebrowser.com/run/signpost-puzzle/): Play Signpost free in your browser: link every square into one numbered chain, each step lying in the direction of its arrow. Grids from 4×4 to 7×7.
+- [Tents and trees puzzle (Tents)](https://exebrowser.com/run/tents-puzzle/): Play the Tents and Trees puzzle free in your browser: pitch one tent beside each tree, never touching another tent, matching row and column counts.
+- [Flood fill colour puzzle (Flood)](https://exebrowser.com/run/flood-puzzle/): Play the flood fill puzzle free in your browser: recolour the top-left area until the whole grid is one colour, within the move limit. 12×12 and 16×16
+- [Same Game](https://exebrowser.com/run/same-game/): Play Same Game free in your browser: remove groups of same-coloured blocks to clear the board and score points. Several board sizes and colour counts.
+- [Untangle (planar graph puzzle) (Untangle)](https://exebrowser.com/run/untangle/): Play Untangle free in your browser: drag the points of a tangled graph until no two lines cross. Choose 6 to 25 points, or set any number in Custom.
+- [Fifteen puzzle (Fifteen)](https://exebrowser.com/run/fifteen-puzzle/): Play the 15 puzzle free in your browser: slide numbered tiles into order with the gap bottom right. Hint key, undo, and custom board sizes.
+- [Mosaic puzzle (Mosaic)](https://exebrowser.com/run/mosaic-puzzle/): Play Mosaic free in your browser: shade squares so every clue matches the number of black squares in its 3×3 block. Board sizes from 3×3 to 50×50.
+- [Dominosa](https://exebrowser.com/run/dominosa/): Play Dominosa free in your browser: find where each domino of a full set lies in a grid of numbers. Trivial to Extreme, sets up to double-9.
+- [Range puzzle (black cells) (Range)](https://exebrowser.com/run/range-puzzle/): Play Range free in your browser: blacken squares so each number sees exactly that many white squares in straight lines, with all whites connected.
+- [Rectangles puzzle (Rectangles)](https://exebrowser.com/run/rectangles-puzzle/): Play Rectangles free in your browser: split the grid into rectangles that each hold one number equal to their area. Boards from 7×7 to 19×19.
+- [Diagonal lines puzzle (Slant)](https://exebrowser.com/run/slant-puzzle/): Play Slant free in your browser: draw a diagonal in every square so the numbered corners are met by the right number of lines and no loop forms.
+- [Map colouring puzzle (Map)](https://exebrowser.com/run/map-colouring-puzzle/): Play the map colouring puzzle free online: fill every region with one of four colours so no two neighbouring regions share a colour. No download.
+- [Magnets puzzle (Magnets)](https://exebrowser.com/run/magnets-puzzle/): Play Magnets free online: fill each domino with a magnet or a blank so row and column + and - counts match and like poles never touch. No download.
+- [Binary puzzle (Unruly)](https://exebrowser.com/run/unruly-puzzle/): Play Unruly, the black-and-white binary grid puzzle, free online: balance each row and column and never put three of one colour in a row.
+- [Number regions puzzle (Filling)](https://exebrowser.com/run/filling-puzzle/): Play Filling free in your browser: fill the grid with digits so every connected group of equal numbers has exactly that many squares. No download.
+- [Pearl loop puzzle (Pearl)](https://exebrowser.com/run/pearl-puzzle/): Play Pearl free online: draw one closed loop through the grid that turns on every black pearl and runs straight through every white pearl.
+- [Train tracks puzzle (Tracks)](https://exebrowser.com/run/tracks-puzzle/): Play Tracks free online: lay one railway line from A to B so each row and column holds the number of track pieces its clue asks for. No download.
+- [Region dividing puzzle (Palisade)](https://exebrowser.com/run/palisade-puzzle/): Play Palisade free online: draw walls to split the grid into regions of equal size so each numbered square has that many walls around it.
+- [Haunted mirror maze puzzle (Undead)](https://exebrowser.com/run/undead-puzzle/): Play Undead free online: place ghosts, vampires and zombies in a maze of mirrors so every sight-line count around the edge comes out right.
+- [Number shading puzzle (Singles)](https://exebrowser.com/run/singles-puzzle/): Play Singles free online: shade squares so no number repeats in a row or column, shaded squares never touch, and the rest stays connected.
+- [Peg solitaire (Pegs)](https://exebrowser.com/run/peg-solitaire/): Play peg solitaire free in your browser: jump pegs over each other to remove them until one is left. English cross, French octagon and random boards.
+- [Sliding row puzzle (Sixteen)](https://exebrowser.com/run/sixteen-puzzle/): Play Sixteen free online: shift whole rows and columns, wrapping tiles round the edges, to put the numbers 1 to 16 back in order. No download.
+- [Sliding network puzzle (Netslide)](https://exebrowser.com/run/netslide/): Play Netslide free online: shift rows and columns of pipe tiles until every tile joins one connected network with no loops. No download needed.
+- [Rotating tiles puzzle (Twiddle)](https://exebrowser.com/run/twiddle-puzzle/): Play Twiddle free online: rotate 2x2 blocks of number tiles to sort the grid into order. Larger blocks and orientable tiles on the Type menu.
+- [Sliding ball gem puzzle (Inertia)](https://exebrowser.com/run/inertia-puzzle/): Play Inertia free online: steer a ball that slides until it hits a wall or stop square, collecting every gem on the grid without hitting a mine.
+- [Rolling cube puzzle (Cube)](https://exebrowser.com/run/cube-puzzle/): Play Cube free online: roll a cube around a grid to pick up all six blue squares on its faces. Tetrahedron, octahedron and icosahedron modes too.
+- [Hidden balls laser deduction puzzle (Black Box)](https://exebrowser.com/run/black-box-puzzle/): Play Black Box free online: fire laser beams into a grid and deduce where the hidden balls are from how the beams are absorbed, turned or reflected.
+- [Light flipping puzzle (Flip)](https://exebrowser.com/run/flip-puzzle/): Play Flip free online: click squares to toggle them and their neighbours until every light on the grid is on. Cross and random patterns. No download.
+- [Code-breaking colour game (Guess)](https://exebrowser.com/run/guess-colours/): Play Guess free online: work out the hidden row of coloured pegs from black and white feedback pegs within ten tries. Classic code-breaking rules.
 
 ## Compatibility guides (bring your own copy)
 

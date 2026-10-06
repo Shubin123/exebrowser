@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Skyscrapers Puzzle Online — Free Tower Logic Puzzle</title>
+<meta name="description" content="Play Skyscrapers free in your browser: place towers of every height once per row and column so the edge clues count the towers visible. 4×4 to 9×9." />
+<meta name="keywords" content="skyscrapers puzzle, skyscrapers online, towers puzzle, building puzzle, latin square puzzle, visibility puzzle, free logic puzzle" />
+<link rel="canonical" href="https://exebrowser.com/run/skyscrapers-puzzle/" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://exebrowser.com/run/skyscrapers-puzzle/" />
+<meta property="og:title" content="Skyscrapers Puzzle Online — Free Tower Logic Puzzle" />
+<meta property="og:description" content="Play Skyscrapers free in your browser: place towers of every height once per row and column so the edge clues count the towers visible. 4×4 to 9×9." />
+<meta property="og:image" content="https://exebrowser.com/run/skyscrapers-puzzle/screenshot.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="alternate icon" href="/favicon.ico" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#0e0d0b" />
+<link rel="alternate" type="application/rss+xml" title="ExeBrowser — new games and posts" href="/feed.xml" />
+<link rel="stylesheet" href="/style.css?v=42" />
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-C8C4TZC5F1" crossorigin="anonymous"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  // Headless automation (our own boot-test harness, crawlers driving Chrome) was
+  // showing up in GA as 0%-engaged sessions with 50+ events. Don't report it.
+  if (!navigator.webdriver) gtag('config', 'G-C8C4TZC5F1');
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://exebrowser.com/" },
+    { "@type": "ListItem", "position": 2, "name": "App guides", "item": "https://exebrowser.com/run/" },
+    { "@type": "ListItem", "position": 3, "name": "Play Skyscrapers", "item": "https://exebrowser.com/run/skyscrapers-puzzle/" }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "VideoGame",
+  "name": "Skyscrapers (Towers)",
+  "url": "https://exebrowser.com/run/skyscrapers-puzzle/",
+  "image": "https://exebrowser.com/run/skyscrapers-puzzle/screenshot.png",
+  "description": "Play Skyscrapers free in your browser: place towers of every height once per row and column so the edge clues count the towers visible. 4×4 to 9×9.",
+  "applicationCategory": "Game",
+  "genre": ["Puzzle", "Logic puzzle"],
+  "gamePlatform": ["Web browser", "Windows"],
+  "operatingSystem": "Web Browser",
+  "publisher": { "@type": "Organization", "name": "Simon Tatham (Simon Tatham's Portable Puzzle Collection)" },
+  "dateModified": "2026-10-06",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Do I have to count the tower right next to the clue?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. The nearest tower is always visible, so every clue is at least 1." }
+    },
+    {
+      "@type": "Question",
+      "name": "Is there one correct answer?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Every difficulty level, including Unreasonable, is generated with a single solution." }
+    },
+    {
+      "@type": "Question",
+      "name": "Is Skyscrapers free to play here?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes, with no limit on the number of puzzles. Towers is open-source software under the MIT licence, and every grid is generated fresh when you press New game." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does it work on a phone or tablet?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. A tap works as a click and the puzzle resizes to fit the screen. Puzzles whose controls use the right mouse button are easier with a mouse." }
+    }
+  ]
+}
+</script>
+<script type="text/javascript" async="async" data-noptimize="1" data-cfasync="false" src="//scripts.mediavine.com/tags/c56060b8-5def-4889-a40e-9e36b06bfd48.js"></script>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="logo" aria-hidden="true">▶_</span>
+    <h1>ExeBrowser</h1>
+  </div>
+  <p class="tagline">Run Windows <code>.exe</code> files in your browser. No install. No upload. Just WebAssembly + Wine.</p>
+  <nav class="site-nav" aria-label="Primary">
+    <a href="/">Home</a>
+    <a href="/load-exe/">Run your EXE</a>
+    <a href="/run/">App guides</a>
+    <a href="/exe-inspector/">EXE viewer</a>
+    <a href="/blog/">Blog</a>
+    <a href="/guide/">Guide</a>
+    <a href="/about/">About</a>
+    <a href="/contact/">Contact</a>
+  </nav>
+</header>
+
+<main class="prose">
+  <p class="resume-bar" id="resume-bar" hidden></p>
+  <nav class="breadcrumb" aria-label="Breadcrumb"><a href="/">Home</a> › <a href="/run/">App guides</a> › Play Skyscrapers</nav>
+
+  <section class="card">
+    <h2>Play Skyscrapers (Towers) online <span class="verdict good">Works — plays right here, unlimited puzzles</span></h2>
+    <p class="muted small" style="margin-top:0.25rem;">Guide updated October 2026 · Runs via WebAssembly (native port)</p>
+    <p>Skyscrapers is a Latin-square puzzle shown as a city of towers: each row and column has one tower of every height, and the numbers round the edge say how many towers you would see looking in from that side, with tall towers hiding shorter ones behind them. The puzzle is ready below; click a square and type a height.</p>
+
+    <div class="iframe-embed-wrap" style="position:relative;width:100%;height:min(680px, calc(100vw + 180px));background:#fff;border-radius:4px;overflow:hidden;">
+      <iframe src="/apps/puzzles/towers.html"
+              style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;"
+              allowfullscreen
+              loading="lazy"
+              title="Skyscrapers (Towers)"></iframe>
+    </div>
+    <details class="controls-panel" open>
+      <summary><strong>Controls</strong> — what does what</summary>
+      <div class="table-wrap">
+        <table class="controls-table">
+          <thead><tr><th scope="col">Action</th><th scope="col">Keyboard</th><th scope="col">Mouse / touch</th></tr></thead>
+          <tbody>
+        <tr><th scope="row">Select a square</th><td><kbd>Arrow keys</kbd></td><td><kbd>Left-click</kbd></td></tr>
+        <tr><th scope="row">Build a tower</th><td>Type its height</td><td>Click, then type</td></tr>
+        <tr><th scope="row">Pencil marks</th><td><kbd>Enter</kbd> toggles pencil mode, then type</td><td><kbd>Right-click</kbd>, then type</td></tr>
+        <tr><th scope="row">Clear a square</th><td><kbd>Space</kbd></td><td>Click, then <kbd>Space</kbd></td></tr>
+        <tr><th scope="row">Fill all pencil marks</th><td>M</td><td><span class="muted">—</span></td></tr>
+        <tr><th scope="row">Grey out a used clue</th><td><kbd>Ctrl</kbd> or <kbd>Shift</kbd> + arrow</td><td><kbd>Left-click</kbd> the clue</td></tr>
+        <tr><th scope="row">Undo / redo</th><td>U / R (or <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+R)</td><td>Game menu buttons</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+    <p class="next-up"><span class="next-up-label">Play next:</span>
+      <a href="/run/final-crusade-of-kroz/">The Final Crusade of Kroz</a>
+      <a href="/run/bio-menace/">Bio Menace</a>
+      <a href="/run/micropolis/">Micropolis</a>
+      <a href="/run/soltys/">Sołtys</a>
+      <a class="next-up-all" href="/run/">all 138 games →</a>
+    </p>
+    <p class="free-note"><span class="badge-free">FREE</span> <strong>This is the complete game, free.</strong> Open source under the MIT licence: the complete puzzle, with a new grid every time.</p>
+    <figure class="app-shot">
+      <img src="/run/skyscrapers-puzzle/screenshot.png" width="1116" height="1116" loading="lazy" alt="Skyscrapers (Towers) running in a browser tab via ExeBrowser" />
+      <figcaption>Skyscrapers (Towers) running in the browser — no install, no upload.</figcaption>
+    </figure>
+    
+    <div class="warn-box">
+      <p class="muted small">Towers is from <a href="https://www.chiark.greenend.org.uk/~sgtatham/puzzles/" target="_blank" rel="noopener">Simon Tatham's Portable Puzzle Collection</a>, © Simon Tatham and contributors, used under the <a href="/apps/puzzles/LICENCE.txt">MIT licence</a>. Built from source by scripts/build-puzzles.mjs.</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>How to play</h2>
+    <p>On an N×N grid, build a tower in each square with a height from 1 to N so that:</p><ul><li>each height appears once in every row and once in every column;</li><li>each edge clue equals the number of towers visible from that point, looking along the row or column; a tower is hidden if any taller tower stands in front of it.</li></ul><p>So a clue of N means the heights rise steadily away from it, and a clue of 1 means the tallest tower is right next to it. In larger or harder puzzles some towers are placed for you and some edge clues are missing.</p>
+    <h3>Sizes and difficulty</h3>
+    <p>Presets cover 4×4 Easy, 5×5 Easy and Hard, and 6×6 at Easy, Hard, Extreme and Unreasonable. Unreasonable needs some trial and error; the other levels can be reasoned out. Custom goes from 3×3 up to 9×9. If you find the 3D drawing hard to read, Preferences can switch to a flat 2D view with plain numbers.</p>
+    <h3>Solving tips</h3>
+    <p>Place the certainties first: a clue of 1 puts the tallest tower beside it, and a clue of N fixes the whole line in rising order. A tower of height N can never be closer to a clue than (clue − 1) squares away, so a clue of 3 keeps the tallest tower out of the first two squares. Opposite clues that add up to N+1 often pin the tallest tower's position exactly.</p>
+    <h3>Where this puzzle comes from</h3>
+    <p>Towers is part of Simon Tatham's Portable Puzzle Collection, a set of about forty logic puzzles written by Simon Tatham and contributors and released under the MIT licence. Every grid is generated on the spot, so the supply never runs out, and for the grid-logic puzzles the generator makes sure each has exactly one solution, reachable by reasoning rather than guessing. The version here is the collection's own code compiled to WebAssembly; the Game menu can save a puzzle to a file and load it again, and the Type menu changes the size and difficulty.</p>
+  </section>
+  <section class="card">
+    <h2>Frequently asked questions</h2>
+    <details>
+      <summary>Do I have to count the tower right next to the clue?</summary>
+      <p>Yes. The nearest tower is always visible, so every clue is at least 1.</p>
+    </details>
+    <details>
+      <summary>Is there one correct answer?</summary>
+      <p>Yes. Every difficulty level, including Unreasonable, is generated with a single solution.</p>
+    </details>
+    <details>
+      <summary>Is Skyscrapers free to play here?</summary>
+      <p>Yes, with no limit on the number of puzzles. Towers is open-source software under the MIT licence, and every grid is generated fresh when you press New game.</p>
+    </details>
+    <details>
+      <summary>Does it work on a phone or tablet?</summary>
+      <p>Yes. A tap works as a click and the puzzle resizes to fit the screen. Puzzles whose controls use the right mouse button are easier with a mouse.</p>
+    </details>
+  </section>
+  <section class="card">
+    <h2>More you can play in your browser</h2>
+    <ul class="poster-grid">
+        <li class="pc-item"><a class="poster-card" href="/run/space-cadet-open/">
+          <img class="pc-shot" src="/run/space-cadet-open/screenshot.png" width="320" height="240" loading="lazy" alt="3D Pinball Space Cadet running in the browser" />
+          <span class="pc-body"><span class="pc-title">3D Pinball Space Cadet</span><span class="pc-play">▶ Play free</span></span>
+        </a></li>
+        <li class="pc-item"><a class="poster-card" href="/run/doom/">
+          <img class="pc-shot" src="/run/doom/screenshot.png" width="320" height="240" loading="lazy" alt="DOOM running in the browser" />
+          <span class="pc-body"><span class="pc-title">DOOM</span><span class="pc-play">▶ Play free</span></span>
+        </a></li>
+        <li class="pc-item"><a class="poster-card" href="/run/duke-nukem-3d/">
+          <img class="pc-shot" src="/run/duke-nukem-3d/screenshot.png" width="320" height="240" loading="lazy" alt="Duke Nukem 3D running in the browser" />
+          <span class="pc-body"><span class="pc-title">Duke Nukem 3D</span><span class="pc-play">▶ Play free</span></span>
+        </a></li>
+        <li class="pc-item"><a class="poster-card" href="/run/librequake/">
+          <img class="pc-shot" src="/run/librequake/screenshot.png" width="320" height="240" loading="lazy" alt="LibreQuake running in the browser" />
+          <span class="pc-body"><span class="pc-title">LibreQuake</span><span class="pc-play">▶ Play free</span></span>
+        </a></li>
+        <li class="pc-item"><a class="poster-card" href="/run/test-drive/">
+          <img class="pc-shot" src="/run/test-drive/screenshot.png" width="320" height="240" loading="lazy" alt="Test Drive running in the browser" />
+          <span class="pc-body"><span class="pc-title">Test Drive</span><span class="pc-play">▶ Play free</span></span>
+        </a></li>
+        <li class="pc-item"><a class="poster-card" href="/run/untangle/">
+          <img class="pc-shot" src="/run/untangle/screenshot.png" width="320" height="240" loading="lazy" alt="Untangle (planar graph puzzle) (Untangle) running in the browser" />
+          <span class="pc-body"><span class="pc-title">Untangle (planar graph puzzle) (Untangle)</span><span class="pc-play">▶ Play free</span></span>
+        </a></li>
+    </ul>
+    <p class="muted small" style="margin:.75rem 0 0;"><a href="/run/">See all 138 titles you can play here →</a></p>
+  </section>
+  <section class="card newsletter">
+    <h2>One new retro game in your inbox each week</h2>
+    <p class="muted small" style="margin-top:0;">We add a game most weeks — free, legal, playable in the browser. No spam, unsubscribe in one click.</p>
+    <form class="newsletter-form" action="/api/subscribe" method="post" data-newsletter>
+      <label class="visually-hidden" for="nl-email">Email address</label>
+      <input id="nl-email" type="email" name="email" required placeholder="you@example.com" autocomplete="email" />
+      <button type="submit" class="button primary">Subscribe</button>
+    </form>
+    <p class="muted small newsletter-status" data-newsletter-status hidden></p>
+  </section>
+  <section class="card">
+    <h2>Related guides</h2>
+    <ul class="card-grid">
+      <li><a class="link-card" href="/run/sudoku/"><span class="lc-title">Sudoku (Solo)</span><span class="lc-desc">Play Sudoku free in your browser: endless generated puzzles from Trivial to Unreasonable, </span></a></li>
+      <li><a class="link-card" href="/run/futoshiki/"><span class="lc-title">Futoshiki (Unequal)</span><span class="lc-desc">Play Futoshiki free in your browser: fill a Latin square that obeys every greater-than sig</span></a></li>
+      <li><a class="link-card" href="/run/keen-puzzle/"><span class="lc-title">Calcudoku (Keen)</span><span class="lc-desc">Play Calcudoku free in your browser: fill a Latin square so each cage hits its sum, produc</span></a></li>
+      <li><a class="link-card" href="/run/tents-puzzle/"><span class="lc-title">Tents and trees puzzle (Tents)</span><span class="lc-desc">Play the Tents and Trees puzzle free in your browser: pitch one tent beside each tree, nev</span></a></li>
+    </ul>
+  </section>
+
+  <section class="card" id="embed-pointer">
+    <h2>Want a game like this on your own site?</h2>
+    <p>Skyscrapers (Towers) isn't ours to give away — we host it, we didn't write
+    it. But eleven of the games here we did write from scratch, and those are free for
+    anyone to put on their own page: one line of HTML, no account, no permission, no attribution
+    beyond a credit line.</p>
+    <p><a class="cta-btn" href="/embed/" id="embed-pointer-cta">See the games you can embed</a></p>
+  </section>
+  <script src="/embed-pointer.js?v=1"></script>
+</main>
+
+<footer>
+  <p>Built on <a href="https://github.com/danoon2/Boxedwine" target="_blank" rel="noopener">Boxedwine</a> · <a href="https://www.winehq.org/" target="_blank" rel="noopener">Wine</a> · WebAssembly. Wine is a trademark of CodeWeavers. ExeBrowser is not affiliated with WineHQ, CodeWeavers, or Microsoft. Sister site: <a href="https://macemu.com/" target="_blank" rel="noopener">macemu.com</a>, classic Mac games in your browser.</p>
+  <nav class="footer-nav" aria-label="Footer">
+    <a href="/">Home</a>
+    <a href="/load-exe/">Run your EXE</a>
+    <a href="/run/">App guides</a>
+    <a href="/exe-inspector/">EXE viewer</a>
+    <a href="/blog/">Blog</a>
+    <a href="/guide/">Compatibility Guide</a>
+    <a href="/about/">About</a>
+    <a href="/contact/">Contact</a>
+    <a href="/dos-emulator/">DOS emulator</a>
+    <a href="/saves/">Saved games</a>
+    <a href="/embed/">Embed our games</a>
+    <a href="/privacy/">Privacy Policy</a>
+    <a href="/terms/">Terms of Use</a>
+  </nav>
+  <p>© 2026 ExeBrowser. Content licensed openly; runtime under GPL-2.0 / LGPL-2.1.</p>
+</footer>
+
+<script src="/save-core.js?v=6"></script>
+<script src="/recent.js?v=8"></script>
+    <script src="/pwa.js?v=2"></script>
+<script>window.renderResumeBar && renderResumeBar("resume-bar");</script>
+<script src="/newsletter.js?v=1"></script>
+</body>
+</html>

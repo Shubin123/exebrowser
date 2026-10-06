@@ -192,7 +192,10 @@ for (const p of pages) {
     if (!isPlayable(q) || q.slug === p.slug) continue;
     const qn = (q.appName || "").toLowerCase();
     if (!qn) continue;
-    const same = qn.startsWith(name) || name.startsWith(qn);
+    // Whole-word prefix only: "Dia" (the diagram editor) is not "Diagonal
+    // lines puzzle", but "DOOM" is "DOOM II".
+    const prefix = (a, b) => a.startsWith(b) && !/[a-z0-9]/.test(a.charAt(b.length));
+    const same = prefix(qn, name) || prefix(name, qn);
     if (!same) continue;
     const linked = JSON.stringify(p.related || []).includes(`/run/${q.slug}/`) ||
                    (p.intro || "").includes(`/run/${q.slug}/`);

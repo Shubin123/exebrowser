@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Inertia: Sliding Ball Gem Collecting Puzzle, Play Online</title>
+<meta name="description" content="Play Inertia free online: steer a ball that slides until it hits a wall or stop square, collecting every gem on the grid without hitting a mine." />
+<meta name="keywords" content="inertia puzzle, sliding ball puzzle, ice sliding puzzle, gem collecting puzzle, maze puzzle online" />
+<link rel="canonical" href="https://exebrowser.com/run/inertia-puzzle/" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://exebrowser.com/run/inertia-puzzle/" />
+<meta property="og:title" content="Inertia: Sliding Ball Gem Collecting Puzzle, Play Online" />
+<meta property="og:description" content="Play Inertia free online: steer a ball that slides until it hits a wall or stop square, collecting every gem on the grid without hitting a mine." />
+<meta property="og:image" content="https://exebrowser.com/run/inertia-puzzle/screenshot.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="alternate icon" href="/favicon.ico" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#0e0d0b" />
+<link rel="alternate" type="application/rss+xml" title="ExeBrowser — new games and posts" href="/feed.xml" />
+<link rel="stylesheet" href="/style.css?v=42" />
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-C8C4TZC5F1" crossorigin="anonymous"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  // Headless automation (our own boot-test harness, crawlers driving Chrome) was
+  // showing up in GA as 0%-engaged sessions with 50+ events. Don't report it.
+  if (!navigator.webdriver) gtag('config', 'G-C8C4TZC5F1');
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://exebrowser.com/" },
+    { "@type": "ListItem", "position": 2, "name": "App guides", "item": "https://exebrowser.com/run/" },
+    { "@type": "ListItem", "position": 3, "name": "Play Sliding ball gem puzzle", "item": "https://exebrowser.com/run/inertia-puzzle/" }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "VideoGame",
+  "name": "Sliding ball gem puzzle (Inertia)",
+  "url": "https://exebrowser.com/run/inertia-puzzle/",
+  "image": "https://exebrowser.com/run/inertia-puzzle/screenshot.png",
+  "description": "Play Inertia free online: steer a ball that slides until it hits a wall or stop square, collecting every gem on the grid without hitting a mine.",
+  "applicationCategory": "Game",
+  "genre": ["Puzzle", "Logic puzzle"],
+  "gamePlatform": ["Web browser", "Windows"],
+  "operatingSystem": "Web Browser",
+  "publisher": { "@type": "Organization", "name": "Simon Tatham (Simon Tatham's Portable Puzzle Collection)" },
+  "dateModified": "2026-10-06",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What happens if I hit a mine?",
+      "acceptedAnswer": { "@type": "Answer", "text": "The ball is destroyed and the game ends, but you can choose Undo to go back to before that move. The game counts how many times you do this." }
+    },
+    {
+      "@type": "Question",
+      "name": "What does Solve do in Inertia?",
+      "acceptedAnswer": { "@type": "Answer", "text": "It works out a route that collects all the remaining gems and shows an arrow on the ball for the next move. Pressing Space follows the arrow one move at a time." }
+    },
+    {
+      "@type": "Question",
+      "name": "Is Inertia free to play here?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes, with no limit on the number of puzzles. Inertia is open-source software under the MIT licence, and every grid is generated fresh when you press New game." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does it work on a phone or tablet?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. A tap works as a click and the puzzle resizes to fit the screen. Puzzles whose controls use the right mouse button are easier with a mouse." }
+    }
+  ]
+}
+</script>
+<script type="text/javascript" async="async" data-noptimize="1" data-cfasync="false" src="//scripts.mediavine.com/tags/c56060b8-5def-4889-a40e-9e36b06bfd48.js"></script>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="logo" aria-hidden="true">▶_</span>
+    <h1>ExeBrowser</h1>
+  </div>
+  <p class="tagline">Run Windows <code>.exe</code> files in your browser. No install. No upload. Just WebAssembly + Wine.</p>
+  <nav class="site-nav" aria-label="Primary">
+    <a href="/">Home</a>
+    <a href="/load-exe/">Run your EXE</a>
+    <a href="/run/">App guides</a>
+    <a href="/exe-inspector/">EXE viewer</a>
+    <a href="/blog/">Blog</a>
+    <a href="/guide/">Guide</a>
+    <a href="/about/">About</a>
+    <a href="/contact/">Contact</a>
+  </nav>
+</header>
+
+<main class="prose">
+  <p class="resume-bar" id="resume-bar" hidden></p>
+  <nav class="breadcrumb" aria-label="Breadcrumb"><a href="/">Home</a> › <a href="/run/">App guides</a> › Play Sliding ball gem puzzle</nav>
+
+  <section class="card">
+    <h2>Play Sliding ball gem puzzle (Inertia) online <span class="verdict good">Works — plays right here, unlimited puzzles</span></h2>
+    <p class="muted small" style="margin-top:0.25rem;">Guide updated October 2026 · Runs via WebAssembly (native port)</p>
+    <p>Inertia is a sliding puzzle in which you move a small green ball around a grid of walls, gems, mines and stop squares. Once the ball moves it keeps going until something halts it, so you plan routes rather than steps. The goal is to collect every gem without touching a mine. The puzzle is ready below; use the numeric keypad or click in the direction you want to go.</p>
+
+    <div class="iframe-embed-wrap" style="position:relative;width:100%;height:min(680px, calc(100vw + 180px));background:#fff;border-radius:4px;overflow:hidden;">
+      <iframe src="/apps/puzzles/inertia.html"
+              style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;"
+              allowfullscreen
+              loading="lazy"
+              title="Sliding ball gem puzzle (Inertia)"></iframe>
+    </div>
+    <details class="controls-panel" open>
+      <summary><strong>Controls</strong> — what does what</summary>
+      <div class="table-wrap">
+        <table class="controls-table">
+          <thead><tr><th scope="col">Action</th><th scope="col">Keyboard</th><th scope="col">Mouse / touch</th></tr></thead>
+          <tbody>
+        <tr><th scope="row">Move in a straight line</th><td><kbd>Arrow keys</kbd> or keypad <kbd>8</kbd>, <kbd>2</kbd>, <kbd>4</kbd>, <kbd>6</kbd></td><td>Click on the grid in that direction</td></tr>
+        <tr><th scope="row">Move diagonally</th><td>Keypad <kbd>7</kbd>, <kbd>9</kbd>, <kbd>1</kbd>, <kbd>3</kbd></td><td>Click on the grid in that direction</td></tr>
+        <tr><th scope="row">Follow the hint arrow (after Solve)</th><td><kbd>Space</kbd></td><td>-</td></tr>
+        <tr><th scope="row">Back up after hitting a mine</th><td>U or <kbd>Ctrl</kbd>+<kbd>Z</kbd></td><td>Game menu, Undo</td></tr>
+        <tr><th scope="row">New puzzle</th><td>N</td><td>Game menu, New game</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+    <p class="next-up"><span class="next-up-label">Play next:</span>
+      <a href="/run/digger/">Digger</a>
+      <a href="/run/flood-puzzle/">Flood fill colour puzzle (Flood)</a>
+      <a href="/run/tents-puzzle/">Tents and trees puzzle (Tents)</a>
+      <a href="/run/filling-puzzle/">Number regions puzzle (Filling)</a>
+      <a class="next-up-all" href="/run/">all 138 games →</a>
+    </p>
+    <p class="free-note"><span class="badge-free">FREE</span> <strong>This is the complete game, free.</strong> Open source under the MIT licence: the complete puzzle, with a new grid every time.</p>
+    <figure class="app-shot">
+      <img src="/run/inertia-puzzle/screenshot.png" width="1300" height="1084" loading="lazy" alt="Sliding ball gem puzzle (Inertia) running in a browser tab via ExeBrowser" />
+      <figcaption>Sliding ball gem puzzle (Inertia) running in the browser — no install, no upload.</figcaption>
+    </figure>
+    
+    <div class="warn-box">
+      <p class="muted small">Inertia is from <a href="https://www.chiark.greenend.org.uk/~sgtatham/puzzles/" target="_blank" rel="noopener">Simon Tatham's Portable Puzzle Collection</a>, © Simon Tatham and contributors, used under the <a href="/apps/puzzles/LICENCE.txt">MIT licence</a>. Built from source by scripts/build-puzzles.mjs.</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>How to play</h2>
+    <ul><li>The ball moves in any of eight directions, straight or diagonal.</li><li>It keeps sliding until it hits a wall or lands on a stop square.</li><li>Gems are picked up as the ball passes over them; they do not stop it.</li><li>Moving diagonally, the ball slips through a gap between two diagonal walls without stopping.</li><li>Touching a mine ends the game, even if the same move took the last gem.</li></ul>
+    <h3>Sizes and difficulty</h3>
+    <p>The Type menu offers 10x8, 15x12 and 20x16 grids. There is no difficulty setting; larger grids have more gems to collect and longer routes to plan. Custom sets any width and height.</p>
+    <h3>Solving tips</h3>
+    <p>Find the stop squares first: they are the only places mid-board where the ball can rest, so a route is really a chain of stops. Gems lying along a wall are usually easy; the ones in open space need a stop or wall beyond them. If you hit a mine, Undo puts you back before the move, and the game keeps a count of your deaths. The Solve option shows a hint arrow for the next move rather than solving the whole board.</p>
+    <h3>Where this puzzle comes from</h3>
+    <p>Inertia is part of Simon Tatham's Portable Puzzle Collection, a set of about forty logic puzzles written by Simon Tatham and contributors and released under the MIT licence. Every grid is generated on the spot, so the supply never runs out, and for the grid-logic puzzles the generator makes sure each has exactly one solution, reachable by reasoning rather than guessing. The version here is the collection's own code compiled to WebAssembly; the Game menu can save a puzzle to a file and load it again, and the Type menu changes the size and difficulty.</p>
+  </section>
+  <section class="card">
+    <h2>Frequently asked questions</h2>
+    <details>
+      <summary>What happens if I hit a mine?</summary>
+      <p>The ball is destroyed and the game ends, but you can choose Undo to go back to before that move. The game counts how many times you do this.</p>
+    </details>
+    <details>
+      <summary>What does Solve do in Inertia?</summary>
+      <p>It works out a route that collects all the remaining gems and shows an arrow on the ball for the next move. Pressing Space follows the arrow one move at a time.</p>
+    </details>
+    <details>
+      <summary>Is Inertia free to play here?</summary>
+      <p>Yes, with no limit on the number of puzzles. Inertia is open-source software under the MIT licence, and every grid is generated fresh when you press New game.</p>
+    </details>
+    <details>
+      <summary>Does it work on a phone or tablet?</summary>
+      <p>Yes. A tap works as a click and the puzzle resizes to fit the screen. Puzzles whose controls use the right mouse button are easier with a mouse.</p>
+    </details>
+  </section>
+  <section class="card">
+    <h2>More you can play in your browser</h2>
+    <ul class="poster-grid">
+        <li class="pc-item"><a class="poster-card" href="/run/space-cadet-open/">
+          <img class="pc-shot" src="/run/space-cadet-open/screenshot.png" width="320" height="240" loading="lazy" alt="3D Pinball Space Cadet running in the browser" />
+          <span class="pc-body"><span class="pc-title">3D Pinball Space Cadet</span><span class="pc-play">▶ Play free</span></span>
+        </a></li>
+        <li class="pc-item"><a class="poster-card" href="/run/doom/">
+          <img class="pc-shot" src="/run/doom/screenshot.png" width="320" height="240" loading="lazy" alt="DOOM running in the browser" />
+          <span class="pc-body"><span class="pc-title">DOOM</span><span class="pc-play">▶ Play free</span></span>
+        </a></li>
+        <li class="pc-item"><a class="poster-card" href="/run/duke-nukem-3d/">
+          <img class="pc-shot" src="/run/duke-nukem-3d/screenshot.png" width="320" height="240" loading="lazy" alt="Duke Nukem 3D running in the browser" />
+          <span class="pc-body"><span class="pc-title">Duke Nukem 3D</span><span class="pc-play">▶ Play free</span></span>
+        </a></li>
+        <li class="pc-item"><a class="poster-card" href="/run/librequake/">
+          <img class="pc-shot" src="/run/librequake/screenshot.png" width="320" height="240" loading="lazy" alt="LibreQuake running in the browser" />
+          <span class="pc-body"><span class="pc-title">LibreQuake</span><span class="pc-play">▶ Play free</span></span>
+        </a></li>
+        <li class="pc-item"><a class="poster-card" href="/run/kens-labyrinth/">
+          <img class="pc-shot" src="/run/kens-labyrinth/screenshot.png" width="320" height="240" loading="lazy" alt="Ken's Labyrinth running in the browser" />
+          <span class="pc-body"><span class="pc-title">Ken's Labyrinth</span><span class="pc-play">▶ Play free</span></span>
+        </a></li>
+        <li class="pc-item"><a class="poster-card" href="/run/treasure-mountain/">
+          <img class="pc-shot" src="/run/treasure-mountain/screenshot.png" width="320" height="240" loading="lazy" alt="Treasure Mountain! running in the browser" />
+          <span class="pc-body"><span class="pc-title">Treasure Mountain!</span><span class="pc-play">▶ Play free</span></span>
+        </a></li>
+    </ul>
+    <p class="muted small" style="margin:.75rem 0 0;"><a href="/run/">See all 138 titles you can play here →</a></p>
+  </section>
+  <section class="card newsletter">
+    <h2>One new retro game in your inbox each week</h2>
+    <p class="muted small" style="margin-top:0;">We add a game most weeks — free, legal, playable in the browser. No spam, unsubscribe in one click.</p>
+    <form class="newsletter-form" action="/api/subscribe" method="post" data-newsletter>
+      <label class="visually-hidden" for="nl-email">Email address</label>
+      <input id="nl-email" type="email" name="email" required placeholder="you@example.com" autocomplete="email" />
+      <button type="submit" class="button primary">Subscribe</button>
+    </form>
+    <p class="muted small newsletter-status" data-newsletter-status hidden></p>
+  </section>
+  <section class="card">
+    <h2>Related guides</h2>
+    <ul class="card-grid">
+      <li><a class="link-card" href="/run/cube-puzzle/"><span class="lc-title">Rolling cube puzzle (Cube)</span><span class="lc-desc">Play Cube free online: roll a cube around a grid to pick up all six blue squares on its…</span></a></li>
+      <li><a class="link-card" href="/run/minesweeper-open/"><span class="lc-title">Minesweeper</span><span class="lc-desc">The Minesweeper you remember — three board sizes, chording, first click always safe. Insta</span></a></li>
+      <li><a class="link-card" href="/run/same-game/"><span class="lc-title">Same Game</span><span class="lc-desc">Play Same Game free in your browser: remove groups of same-coloured blocks to clear the bo</span></a></li>
+      <li><a class="link-card" href="/run/peg-solitaire/"><span class="lc-title">Peg solitaire (Pegs)</span><span class="lc-desc">Play peg solitaire free in your browser: jump pegs over each other to remove them until on</span></a></li>
+    </ul>
+  </section>
+
+  <section class="card" id="embed-pointer">
+    <h2>Want a game like this on your own site?</h2>
+    <p>Sliding ball gem puzzle (Inertia) isn't ours to give away — we host it, we didn't write
+    it. But eleven of the games here we did write from scratch, and those are free for
+    anyone to put on their own page: one line of HTML, no account, no permission, no attribution
+    beyond a credit line.</p>
+    <p><a class="cta-btn" href="/embed/" id="embed-pointer-cta">See the games you can embed</a></p>
+  </section>
+  <script src="/embed-pointer.js?v=1"></script>
+</main>
+
+<footer>
+  <p>Built on <a href="https://github.com/danoon2/Boxedwine" target="_blank" rel="noopener">Boxedwine</a> · <a href="https://www.winehq.org/" target="_blank" rel="noopener">Wine</a> · WebAssembly. Wine is a trademark of CodeWeavers. ExeBrowser is not affiliated with WineHQ, CodeWeavers, or Microsoft. Sister site: <a href="https://macemu.com/" target="_blank" rel="noopener">macemu.com</a>, classic Mac games in your browser.</p>
+  <nav class="footer-nav" aria-label="Footer">
+    <a href="/">Home</a>
+    <a href="/load-exe/">Run your EXE</a>
+    <a href="/run/">App guides</a>
+    <a href="/exe-inspector/">EXE viewer</a>
+    <a href="/blog/">Blog</a>
+    <a href="/guide/">Compatibility Guide</a>
+    <a href="/about/">About</a>
+    <a href="/contact/">Contact</a>
+    <a href="/dos-emulator/">DOS emulator</a>
+    <a href="/saves/">Saved games</a>
+    <a href="/embed/">Embed our games</a>
+    <a href="/privacy/">Privacy Policy</a>
+    <a href="/terms/">Terms of Use</a>
+  </nav>
+  <p>© 2026 ExeBrowser. Content licensed openly; runtime under GPL-2.0 / LGPL-2.1.</p>
+</footer>
+
+<script src="/save-core.js?v=6"></script>
+<script src="/recent.js?v=8"></script>
+    <script src="/pwa.js?v=2"></script>
+<script>window.renderResumeBar && renderResumeBar("resume-bar");</script>
+<script src="/newsletter.js?v=1"></script>
+</body>
+</html>
