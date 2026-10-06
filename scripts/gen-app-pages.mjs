@@ -790,7 +790,7 @@ const render = (p, L = EN) => `<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>${esc(p.title)}</title>
 <meta name="description" content="${esc(p.description)}" />
-<meta name="keywords" content="${esc(p.keywords)}" />
+<meta name="keywords" content="${esc(p.keywords)}" />${p.provenance === "grey" ? '\n<meta name="robots" content="noindex, follow" />' : ""}
 <link rel="canonical" href="${SITE}${L.prefix}/run/${p.slug}/" />${hreflangHtml(`/run/${p.slug}/`, p.slug)}
 <meta property="og:type" content="article" />
 <meta property="og:url" content="${SITE}${L.prefix}/run/${p.slug}/" />
@@ -1662,7 +1662,12 @@ const STATIC_URLS = [
 ];
 const urlEl = (loc, freq, pri, mod) =>
   `  <url>\n    <loc>${SITE}${loc}</loc>${mod ? `\n    <lastmod>${mod}</lastmod>` : ""}\n    <changefreq>${freq}</changefreq>\n    <priority>${pri}</priority>\n  </url>`;
-const runUrls = pages.map((p) => urlEl(`/run/${p.slug}/`, "monthly", "0.7", p.updated));
+// Grey-tier titles carry noindex (unlicensed abandonware — kept playable for
+// direct/referral visitors, but not something to hand a search engine or an
+// ad-network reviewer crawling the sitemap).
+const runUrls = pages
+  .filter((p) => p.provenance !== "grey")
+  .map((p) => urlEl(`/run/${p.slug}/`, "monthly", "0.7", p.updated));
 // Localised pages are separate URLs and need to be crawlable in their own
 // right; hreflang in the page head is what ties them back to the English one.
 const localisedRootUrls = LANGS.filter((c) => c !== "en" && translatedSlugs(c).length).flatMap((code) => [
@@ -1679,7 +1684,7 @@ const localisedStaticUrls = LANGS.filter((c) => c !== "en").flatMap((code) =>
 );
 const localisedUrls = LANGS.filter((c) => c !== "en").flatMap((code) =>
   translatedSlugs(code)
-    .filter((slug) => pages.some((p) => p.slug === slug))
+    .filter((slug) => pages.some((p) => p.slug === slug && p.provenance !== "grey"))
     .map((slug) => urlEl(`${prefixOf(code)}/run/${slug}/`, "monthly", "0.6",
       (pages.find((p) => p.slug === slug) || {}).updated))
 );
