@@ -661,6 +661,52 @@
     }
     window.uploadAndRunExe = uploadAndRunExe;
 
+    // --- cross-page handoff from /load-exe/ ---------------------------------
+    // A visitor who picked an x64 EXE on the Windows loader (or proactively
+    // chose this engine from its variant picker) can continue here without
+    // re-selecting the file: that page stashes the staged bytes in the same
+    // IndexedDB mailbox the DOS player uses (public/handoff.js) before
+    // navigating to /64/?chunked=1#handoff. This drains that mailbox once the
+    // sandbox is ready to accept an upload — the same readiness
+    // uploadAndRunExe() itself waits on (whenFsReady), so this never fires
+    // uploadAndRunExe's "not ready yet" alert.
+    function consumeHandoff() {
+        if (window.location.hash !== "#handoff" || !window.ExeHandoff) return;
+        try { history.replaceState(null, "", window.location.pathname + window.location.search); } catch (e) {}
+        window.ExeHandoff.take().then(function (h) {
+            if (!h || !h.files || !h.files.length) return;
+            var entryPath = h.entry || h.files[0].path;
+            var entryFile = null;
+            for (var i = 0; i < h.files.length; i++) {
+                if (h.files[i].path === entryPath) { entryFile = h.files[i]; break; }
+            }
+            if (!entryFile) entryFile = h.files[0];
+            var name = entryFile.path.split("/").pop();
+            // uploadAndRunExe is single-portable-EXE only (see its own doc
+            // comment above) — say so honestly rather than silently dropping
+            // the rest of a folder/zip upload.
+            if (h.files.length > 1) notifyHandoffPartial(h.files.length, name);
+            whenFsReady().then(function () {
+                var file = new File([entryFile.bytes], name, { type: "application/octet-stream" });
+                uploadAndRunExe(file);
+            }).catch(function (e) {
+                console.log("wine64-launcher: handoff file never got a ready sandbox: " + e);
+            });
+        }).catch(function () {});
+    }
+
+    function notifyHandoffPartial(total, picked) {
+        if (!document.body) return;
+        var note = document.createElement("div");
+        note.id = "wine64-handoff-note";
+        note.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:999;background:#373b41;" +
+            "color:#c5c8c6;padding:.5em 1em;font:13px/1.4 system-ui,sans-serif;text-align:center;" +
+            "border-bottom:1px solid #4a4e54;";
+        note.textContent = "Brought over " + picked + " from the Windows loader (1 of " + total +
+            " files) — this experimental runtime only runs a single portable .exe today.";
+        document.body.insertBefore(note, document.body.firstChild);
+    }
+
     // --- orchestration ------------------------------------------------------
     // The zips are large (wine64.zip ~205MB) on the FIRST boot. Their downloads
     // were already started by bootWine() (overlapping the wasm compile); here we
@@ -1215,4 +1261,5 @@
     });
     if (window.setActiveApp) try { window.setActiveApp(PROG || "--version"); } catch (e) {}
     bootWine();
+    consumeHandoff();
 })();

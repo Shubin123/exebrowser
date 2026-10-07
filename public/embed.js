@@ -76,9 +76,10 @@
   // The Wine engine choice. Hidden on app pages (the guide already knows which
   // engine its app needs); visible on /load-exe/, where the visitor's file is
   // the unknown and the wrong engine is the most common reason nothing runs.
-  // "x64" is deliberately absent: it is a separate page with its own loader,
-  // and app.js only redirects to it from the home page's Boot button, so
-  // offering it here would set a variant that never loads.
+  // "x64" is a real choice here even though it boots on a separate page: the
+  // change handler below hands the staged upload to it through the same
+  // IndexedDB mailbox the DOS player uses (window.ExeBrowser.handoffToX64),
+  // rather than silently setting a variant that never loads in this engine.
   const variantPickerHtml = cfg.variantPicker
     ? `<div class="embed-variant">
       <label for="wineVariant"><strong>${escapeHtml(T("wineEngine", "Wine engine:"))}</strong></label>
@@ -87,6 +88,7 @@
         <option value="gecko">${escapeHtml(T("wineVariantGecko", "Wine 1.7.55 · Win32 + Gecko — apps that ask for Internet Explorer"))}</option>
         <option value="win3x">${escapeHtml(T("wineVariant16", "Wine 3.1 · 16-bit Windows 3.x — 1990–1994 apps"))}</option>
         <option value="r18">${escapeHtml(T("wineVariantR18", "Boxedwine 18R2 — older engine, sometimes runs what the default won't"))}</option>
+        <option value="x64">${escapeHtml(T("wineVariantX64", "wine64 · experimental — 64-bit programs, opens its own page"))}</option>
       </select>
     </div>`
     : "";
@@ -184,8 +186,48 @@
   // A visible engine picker has to reach the engine. app.js commits the variant
   // on its Boot button, which this embed never shows, so state.selectedVariant
   // would otherwise stay on "default" no matter what the <select> says.
+  //
+  // "x64" isn't a real WINE_VARIANTS entry — setVariant() would silently no-op
+  // on it — so it's handled separately: if a file is already staged, hand it
+  // off immediately; if not, arm a one-time watcher on the Run button (which
+  // app.js enables the moment a file is staged) so picking x64 *before*
+  // picking a file still continues there as soon as one is chosen, instead of
+  // quietly doing nothing.
   if (cfg.variantPicker) {
-    document.getElementById("wineVariant")?.addEventListener("change", async (e) => {
+    const variantSelect = document.getElementById("wineVariant");
+    let x64Watcher = null;
+    const clearX64Pending = () => {
+      if (x64Watcher) { x64Watcher.disconnect(); x64Watcher = null; }
+      document.getElementById("x64-pending-note")?.remove();
+    };
+    const armX64Pending = () => {
+      if (x64Watcher) return;
+      let note = document.getElementById("x64-pending-note");
+      if (!note) {
+        note = document.createElement("p");
+        note.id = "x64-pending-note";
+        note.className = "muted small";
+        note.textContent = T("wineX64Pending", "Pick your file below — it continues on the experimental 64-bit page.");
+        variantSelect.closest(".embed-variant")?.after(note);
+      }
+      const runBtn = document.getElementById("runBtn");
+      if (!runBtn) return;
+      x64Watcher = new MutationObserver(() => {
+        if (!runBtn.disabled) {
+          clearX64Pending();
+          waitForEngine().then((EB) => EB.handoffToX64()).catch(() => {});
+        }
+      });
+      x64Watcher.observe(runBtn, { attributes: true, attributeFilter: ["disabled"] });
+    };
+    variantSelect?.addEventListener("change", async (e) => {
+      if (e.target.value === "x64") {
+        const EB = await waitForEngine().catch(() => null);
+        if (EB && EB.isReady()) { clearX64Pending(); EB.handoffToX64(); }
+        else armX64Pending();
+        return;
+      }
+      clearX64Pending();
       try { (await waitForEngine()).setVariant(e.target.value); } catch { /* engine not up yet; play() sets it */ }
     });
   }

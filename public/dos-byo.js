@@ -419,6 +419,15 @@
       if (!h || !h.files || !h.files.length) return;
       stage(h.files, "handoff");
       if (h.entry && h.files.some((f) => f.path === h.entry)) setEntry(h.entry);
+      // The only prior sign a handoff worked was a console log() line inside
+      // a collapsed panel — not somewhere a visitor who just clicked a link
+      // looks. setEntry() above may have already set its own notice (e.g. if
+      // this somehow turned out to be a Windows program after all); this
+      // replaces it only when that didn't happen.
+      if (els.notice.hidden) {
+        showNotice("info", T("dosHandoffArrived", "Brought over from the Windows loader"),
+          T("dosHandoffArrivedBody", "Ready to run — the files you picked there came with you."));
+      }
       els.drop.scrollIntoView({ behavior: "smooth", block: "center" });
     }).catch(() => {});
   }

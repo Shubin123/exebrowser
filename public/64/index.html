@@ -166,6 +166,10 @@
         }
       })();
     </script>
+    <!-- Lets a visitor arrive here with a file already staged on the Windows
+         loader (/load-exe/#handoff), via the same IndexedDB mailbox the DOS
+         player uses — picked up in wine64-launcher.js. -->
+    <script src="/handoff.js?v=1"></script>
     <!-- The launcher self-boots on load (reads ?p / ?boot / ?novideo, then boots
          the wasm module behind the COI gate). It also defines window.launchApp
          for in-page app switching and window.downloadSavedFiles. -->

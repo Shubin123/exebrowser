@@ -245,6 +245,45 @@
     // shell.js calls dropzone.addEventListener; our existing #dropzone works.
   }
 
+  // ─── loading-phase status line ─────────────────────────────────────────
+  // A single secondary line under the main boot status: byte counts while
+  // Boxedwine range-fetches its runtime (the "default"/"gecko" variants give
+  // no other signal of progress during that phase), then reassurance text
+  // once watchFirstFrame takes over waiting for a picture. One slot, reused
+  // across both phases rather than two competing status lines.
+  function fetchStatusEl() {
+    let el = document.getElementById("bootFetchStatus");
+    if (!el && els.bootStatus) {
+      el = document.createElement("span");
+      el.id = "bootFetchStatus";
+      el.className = "muted small";
+      els.bootStatus.after(el);
+    }
+    return el;
+  }
+  function setFetchStatusText(text) {
+    const el = fetchStatusEl();
+    if (el) el.textContent = text || "";
+  }
+
+  let xhrBytesFetched = 0;
+  let fetchStatusTimer = null;
+  function resetFetchProgress() {
+    xhrBytesFetched = 0;
+    setFetchStatusText("");
+  }
+  function bumpFetchProgress(delta) {
+    if (delta <= 0) return;
+    xhrBytesFetched += delta;
+    if (fetchStatusTimer) return;
+    // Throttle DOM writes to a few times a second rather than on every chunk
+    // — Range-fetched DLLs come in frequently once the runtime gets going.
+    fetchStatusTimer = setTimeout(() => {
+      fetchStatusTimer = null;
+      setFetchStatusText(T("wineFetchedSoFar", "Fetched {amount} of runtime files so far…", { amount: formatBytes(xhrBytesFetched) }));
+    }, 300);
+  }
+
   // ─── XHR interception ──────────────────────────────────────────────────
   // Boxedwine's shell.js uses XMLHttpRequest to fetch the app zip:
   //     locateAppBaseUrl + appZipFile
@@ -288,6 +327,15 @@
     NativeXHR.prototype.send = function (body) {
       const url = this.__exebrowser_url || "";
       if (!url.includes(VIRTUAL_APP_ZIP)) {
+        // Real network traffic: Boxedwine's own runtime/DLL fetches (Range
+        // chunks under ondemand mode, or the whole root zip under inline
+        // mode). `loaded` is cumulative per request, so track the delta.
+        let lastLoaded = 0;
+        this.addEventListener("progress", (ev) => {
+          const loaded = ev.loaded || 0;
+          const delta = loaded - lastLoaded;
+          if (delta > 0) { lastLoaded = loaded; bumpFetchProgress(delta); }
+        });
         return origSend.call(this, body);
       }
 
@@ -519,6 +567,7 @@
     state.entrySource = null;
     state.preflight = null;
     showPreflight(null);
+    showHandoffNotice(null);
   }
 
   // After stagedFiles is populated, find EXEs, refresh the entry-picker, and
@@ -599,6 +648,13 @@
   // the visitor find out.
   const MODERN_CRT = /^(vcruntime140|msvcp140|ucrtbase|api-ms-win-crt|msvcr(90|100|110|120))/i;
 
+  // Named once so the "crt" preflight case can say which DLL it is, not just
+  // that one is missing.
+  function findCrtDll(p) {
+    const hit = (p.imports || []).find((d) => MODERN_CRT.test(d.dll || ""));
+    return hit ? hit.dll : null;
+  }
+
   function classify(p, info) {
     if (p.format === "not-exe") return "not_exe";
     if (p.format === "dos") return "dos";
@@ -613,9 +669,40 @@
     if (p.isDll) return "dll";
     if (info.installer && p.overlaySize > p.size * 0.5) return "installer";
     // Only worth saying for a lone EXE: from a folder or zip the DLLs came along.
-    if (state.entrySource === "exe" &&
-        (p.imports || []).some((d) => MODERN_CRT.test(d.dll || ""))) return "crt";
+    if (state.entrySource === "exe" && findCrtDll(p)) return "crt";
     return "ok";
+  }
+
+  // pe-inspect.js already parsed the icon, version-info fields and capability
+  // list for the analytics snapshot below — this just keeps what's worth
+  // showing, so the preflight banner can say what the file actually is
+  // instead of only what's wrong with it. Mirrors the null-checking idiom
+  // pe-inspect.js's own render() uses (resources/icon/version can each be
+  // null independently).
+  function buildEnrichment(p, info, kase) {
+    const ver = p.resources && p.resources.version;
+    const fields = (ver && ver.fields) || {};
+    return {
+      icon: (p.resources && p.resources.icon) || null,
+      description: fields.FileDescription || fields.ProductName || "",
+      company: fields.CompanyName || "",
+      capabilities: info.capabilities || [],
+      crtDll: kase === "crt" ? findCrtDll(p) : null,
+    };
+  }
+
+  // Ported, not re-derived, from pe-inspect.js's own verdict() blocker
+  // phrasing — the loader only surfaces the subset relevant to whether this
+  // specific sandbox can run the file, not the full capability list.
+  function blockerNotes(caps) {
+    const notes = [];
+    if (caps.indexOf("Draws with Direct3D or OpenGL") >= 0) {
+      notes.push(T("pfCapGfx", "it draws with Direct3D or OpenGL, and there is no GPU passthrough here"));
+    }
+    if (caps.indexOf("Talks to the network") >= 0) {
+      notes.push(T("pfCapNet", "it expects a network, and the tab gives it none"));
+    }
+    return notes;
   }
 
   // [headline, explanation] per case. Plain text: these go through T() and
@@ -642,9 +729,9 @@
     dll: ["pfDll", "This is a DLL, not a program",
       "pfDllBody", "A DLL is a library that programs load. Load the program's whole folder and pick its .exe."],
     installer: ["pfInstaller", "This is an installer",
-      "pfInstallerBody", "Running it unpacks the program rather than starting it. That can work — let it finish — but extracting the files may be quicker."],
+      "pfInstallerBody", "Running it unpacks the program rather than starting it. That can work — let it finish. Extracting the files may be quicker, but only works for ZIP/7z-based installers; it won't help with an InstallShield, MSI or NSIS-wrapped one."],
     crt: ["pfCrt", "It needs DLLs that came with it",
-      "pfCrtBody", "This program uses a Visual C++ runtime that is not part of Windows. Load its whole folder instead of the lone .exe, so those DLLs come too."],
+      "pfCrtBody", "This program uses {dll}, a Visual C++ runtime that is not part of Windows. Load its whole folder instead of the lone .exe, so those DLLs come too."],
   };
   const PF_BAD = new Set(["x64", "dos", "not_exe", "damaged", "cpu", "driver", ".net", "dll"]);
 
@@ -662,7 +749,7 @@
     return box;
   }
 
-  function showPreflight(kase) {
+  function showPreflight(kase, enrichment) {
     const box = preflightBox();
     if (!box) return;
     box.replaceChildren();
@@ -673,8 +760,47 @@
     const head = document.createElement("strong");
     head.textContent = T(t[0], t[1]);
     const body = document.createElement("p");
-    body.textContent = T(t[2], t[3]);
+    const bodyVars = kase === "crt" ? { dll: (enrichment && enrichment.crtDll) || "a Visual C++ runtime" } : undefined;
+    body.textContent = T(t[2], t[3], bodyVars);
     box.append(head, body);
+
+    // What the file claims to be, read from the exact parse this banner's
+    // verdict came from — turns "64-bit program" into "Notepad++ (Don Ho) —
+    // 64-bit program" before the visitor commits to the download. Shows
+    // nothing when a file carries no icon/version resource (most small
+    // utilities don't) rather than a placeholder — this is additive, not a
+    // thing every file needs to have.
+    if (enrichment) {
+      const idLine = [enrichment.description, enrichment.company].filter(Boolean).join(" — ");
+      if (enrichment.icon || idLine) {
+        const id = document.createElement("p");
+        id.className = "preflight-id muted small";
+        if (enrichment.icon) {
+          const img = new Image();
+          img.alt = "";
+          img.width = 24;
+          img.height = 24;
+          img.style.cssText = "vertical-align:middle;image-rendering:pixelated;margin-right:.4em;border-radius:4px;";
+          img.src = URL.createObjectURL(enrichment.icon.blob);
+          img.onload = () => URL.revokeObjectURL(img.src);
+          img.onerror = () => img.remove();
+          id.append(img);
+        }
+        if (idLine) id.append(document.createTextNode(idLine));
+        box.append(id);
+      }
+      // Only for the cases that aren't flatly broken — a blocker worth
+      // knowing about before trying, not a pile-on next to "this is a DLL".
+      if (!PF_BAD.has(kase) && enrichment.capabilities.length) {
+        const notes = blockerNotes(enrichment.capabilities);
+        if (notes.length) {
+          const capP = document.createElement("p");
+          capP.className = "muted small";
+          capP.textContent = T("pfCapNote", "Worth knowing: {notes}.", { notes: notes.join("; ") });
+          box.append(capP);
+        }
+      }
+    }
 
     const actions = document.createElement("p");
     actions.className = "preflight-actions";
@@ -685,7 +811,12 @@
       if (action) a.addEventListener("click", () => track("preflight_action", { action }));
       actions.append(a, " ");
     };
-    if (kase === "x64") link("/64/?chunked=1", "pfOpen64", "Try the experimental 64-bit engine (pick the file again there) →", "open_64");
+    if (kase === "x64") {
+      // The files travel with them, same as the DOS case below.
+      link("/64/?chunked=1#handoff", "pfOpen64", "Try the experimental 64-bit engine — your file comes with you →", null);
+      const a = actions.querySelector('a[href="/64/?chunked=1#handoff"]');
+      a?.addEventListener("click", (e) => { e.preventDefault(); handoffToX64(); });
+    }
     if (kase === "dos") {
       // The files travel with them, so the DOS player opens ready to run.
       link("/dos-emulator/#handoff", "pfDosLink", "Open it in the DOS player →", "open_dos");
@@ -717,6 +848,29 @@
     }
   }
 
+  // A small, neutral confirmation that a handoff from the other loader (DOS
+  // player <-> this one) actually carried files — the only prior sign was a
+  // console log() line inside the collapsed <details> panel, which is not
+  // somewhere a visitor who just clicked a link looks.
+  function handoffNoticeBox() {
+    let box = document.getElementById("handoff-notice");
+    if (!box && els.dropzone) {
+      box = document.createElement("p");
+      box.id = "handoff-notice";
+      box.className = "preflight";
+      box.setAttribute("role", "status");
+      box.hidden = true;
+      els.dropzone.after(box);
+    }
+    return box;
+  }
+  function showHandoffNotice(text) {
+    const box = handoffNoticeBox();
+    if (!box) return;
+    box.hidden = !text;
+    box.textContent = text || "";
+  }
+
   // The runtime is fetched in bootAndRun, so until then the engine is free to
   // change. After a boot it is not, and the caller says nothing rather than
   // claim a switch that did not happen.
@@ -726,6 +880,17 @@
     if (els.wineVariant) els.wineVariant.value = to;
     log(`Preflight: switched engine to ${to}.`);
     return true;
+  }
+
+  // Carries the staged files to the experimental 64-bit page through the same
+  // handoff mailbox the DOS player uses (public/handoff.js), so neither the
+  // reactive preflight link nor a proactive engine pick loses the upload the
+  // way the old "pick the file again there" redirect did. Exposed on
+  // window.ExeBrowser so embed.js's variant <select> can call it too.
+  async function handoffToX64() {
+    track("preflight_action", { action: "open_64" });
+    await window.ExeHandoff?.put(state.stagedFiles, state.pickedExe && state.pickedExe.path);
+    location.href = "/64/?chunked=1#handoff";
   }
 
   function preflight(stagedFile) {
@@ -745,6 +910,7 @@
       return;
     }
     let kase = classify(p, info);
+    const enrichment = buildEnrichment(p, info, kase);
     state.preflight = {
       format: p.format,
       arch: (p.machineInfo && p.machineInfo.arch) || "n/a",
@@ -782,7 +948,7 @@
     if (kase === "ok") return;
     if (!kase) return;
     log(`Preflight: ${kase} (${state.preflight.format}/${state.preflight.arch}).`, PF_BAD.has(kase) ? "warn" : "info");
-    showPreflight(kase);
+    showPreflight(kase, enrichment);
     track("preflight_shown", {
       preflight: kase, format: state.preflight.format, arch: state.preflight.arch, verdict: v.kind,
     });
@@ -1369,7 +1535,7 @@
     proto.getContext = patched;
   }
 
-  function watchFirstFrame(t0, report) {
+  function watchFirstFrame(t0, report, onTick) {
     let done = false;
     let visibleMs = 0;
     let last = performance.now();
@@ -1387,8 +1553,30 @@
       last = now;
       if (canvasColours(els.canvas) >= FRAME_MIN_COLOURS) finish("frame");
       else if (visibleMs > FRAME_TIMEOUT_MS) finish("no_frame");
+      else if (onTick) onTick(visibleMs);
     }, FRAME_POLL_MS);
     addEventListener("pagehide", onHide);
+  }
+
+  // Reassurance during the frame-wait, keyed to the same clock watchFirstFrame
+  // already runs. A static window (Notepad-style) can go a long time before
+  // the colour-sample catches a real paint; without this the wait looks
+  // identical to a stall. Thresholds sit well short of the real 90s no_frame
+  // timeout so this never implies failure before that timeout does.
+  function makeFrameWaitTicker() {
+    const shown = new Set();
+    const thresholds = [
+      [8000, "wineStillStarting", "Still starting…"],
+      [25000, "wineStillWaiting", "Still waiting for a picture — normal for some older software. Check Console output below if this continues."],
+    ];
+    return (visibleMs) => {
+      for (const [ms, key, fallback] of thresholds) {
+        if (visibleMs >= ms && !shown.has(ms)) {
+          shown.add(ms);
+          setFetchStatusText(T(key, fallback));
+        }
+      }
+    };
   }
 
   // Everything byo_result knows about the visitor's program. Never the name:
@@ -1421,6 +1609,7 @@
     try {
       keepCanvasReadable();
       installXhrInterceptor();
+      resetFetchProgress();
       await loadBoxedwineDeps();
       await buildAppZip();
       await runShellWithConfig();
@@ -1431,6 +1620,7 @@
       state.booted = true;
       els.saveStateBtn.disabled = false;
       setStatus(T("wineRunning", "Running {name}…", { name: state.pickedExe.originalName }));
+      setFetchStatusText("");
       // Someone who has got a program running has earned the install offer,
       // whether or not they have ever saved anything.
       if (window.ExeInstall && window.ExeInstall.engaged) window.ExeInstall.engaged("boot");
@@ -1438,10 +1628,11 @@
       track("boot_success", { boot_ms: Math.round(performance.now() - t0) });
       startHeartbeat();
       watchFirstFrame(t0, (outcome, ms) => {
+        setFetchStatusText("");
         log(`First frame: ${outcome} after ${ms} ms.`);
         if (byo) track("byo_result", Object.assign({ outcome, ttff_ms: ms }, byoParams()));
         else track("first_frame", { outcome, ttff_ms: ms });
-      });
+      }, makeFrameWaitTicker());
 
       if (WINE_PERSIST_ON) {
         // The overlays only exist once Wine has finished mounting, and how
@@ -1479,6 +1670,7 @@
       }
       log("Boot failed: " + err.message, "error");
       setStatus(T("wineBootFailed", "Boot failed. See console."));
+      setFetchStatusText("");
       els.bootBtn.disabled = false;
       els.runBtn.disabled = false;
       state.bootInFlight = false;
@@ -1590,6 +1782,7 @@
         if (safe) state.stagedFiles.push({ path: safe, bytes: f.bytes });
       }
       log(`Brought over ${state.stagedFiles.length} file(s) from the DOS player.`);
+      showHandoffNotice(T("wineHandoffArrived", "Brought over from the DOS player — ready to run."));
       state.entrySource = "handoff";
       refreshEntryPicker();
       if (h.entry) window.ExeBrowser?.preferEntry(h.entry.split("/").pop());
@@ -1663,6 +1856,10 @@
     // Boot the engine and run the staged entry EXE. Same path as the Run button.
     run: bootAndRun,
     saveFiles: () => persistWineLayers("manual"),
+    // Hand the staged upload to the experimental 64-bit page via the handoff
+    // mailbox — used by the preflight banner's x64 link and by embed.js's
+    // variant <select> when x64 is picked proactively.
+    handoffToX64,
     // Introspection for the embed UI.
     isReady: () => !!state.pickedExe,
     isBooting: () => state.bootInFlight,
