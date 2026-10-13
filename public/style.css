@@ -709,7 +709,7 @@ footer {
 #dos-stage.dos-maximised {
   position: fixed;
   inset: 0;
-  z-index: 9999;
+  z-index: 2147483647; /* above ad adhesion bars on iOS */
   max-width: none;
   width: 100vw;
   height: 100dvh;
@@ -1252,3 +1252,19 @@ body.dos-playing { overflow: hidden; }
 .preflight p { margin: 0.35rem 0 0; }
 .preflight .preflight-actions a,
 .preflight .preflight-actions .linklike { margin-right: 0.75rem; }
+
+/* ── Desktop ad rail (wrapped around <main> by scripts/inject-ads.mjs) ─── */
+.ad-layout { display: contents; }
+.ad-rail { display: none; }
+@media (min-width: 1250px) {
+  .ad-layout {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    padding: 0 1rem;
+  }
+  .ad-layout > main { flex: 0 1 880px; min-width: 0; margin: 0; }
+  /* Stretches to the page height so Mediavine's sticky unit can follow the
+     reader (and stay beside the game while it is played). Fixed width: no CLS. */
+  .ad-rail { display: block; flex: 0 0 300px; padding-top: 1.5rem; }
+}

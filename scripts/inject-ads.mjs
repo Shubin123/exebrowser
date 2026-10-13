@@ -6,7 +6,7 @@
 //   node scripts/inject-ads.mjs
 import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
-import { AD_TAG, AD_TAG_RE, loadPages, noAdReason } from "./ads.mjs";
+import { AD_TAG, AD_TAG_RE, addRail, loadPages, noAdReason, stripRail } from "./ads.mjs";
 
 const ROOT = resolve(process.cwd(), "public");
 const bySlug = loadPages();
@@ -24,9 +24,9 @@ for (const abs of htmlFiles(ROOT)) {
   const rel = relative(ROOT, abs).split("\\").join("/");
   const html = readFileSync(abs, "utf8");
   if (!/<\/head>/i.test(html)) continue; // fragments, not pages
-  const stripped = html.replace(AD_TAG_RE, "");
+  const stripped = stripRail(html.replace(AD_TAG_RE, ""));
   const want = noAdReason(rel, stripped, bySlug) === null;
-  const next = want ? stripped.replace(/<\/head>/i, `${AD_TAG}\n</head>`) : stripped;
+  const next = want ? addRail(stripped.replace(/<\/head>/i, `${AD_TAG}\n</head>`)) : stripped;
   if (want) withAds++;
   else without++;
   if (next !== html) {

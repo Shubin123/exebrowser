@@ -51,3 +51,23 @@ export function noAdReason(rel, html, bySlug) {
   }
   return null;
 }
+
+// Desktop ad rail. Pages that carry ads get their <main> wrapped with an empty
+// right-hand column for Mediavine's sidebar units (the sticky sidebar is the
+// best-paying desktop slot and the one that stays beside the game while people
+// play). Below 1250px the wrapper is display:contents and the rail is hidden,
+// so the phone and tablet layout is unchanged. Mediavine's dashboard sidebar
+// selector must point at #mv-sidebar. Pages without ads get the wrapper removed.
+export const RAIL_OPEN = '<div class="ad-layout">';
+export const RAIL_CLOSE =
+  '<aside class="ad-rail" aria-label="Advertisement"><div id="mv-sidebar"></div></aside></div>';
+
+export function addRail(html) {
+  if (html.includes(RAIL_OPEN)) return html;
+  if ((html.match(/<main[\s>]/g) || []).length !== 1 || (html.match(/<\/main>/g) || []).length !== 1) return html;
+  return html.replace(/<main([\s>])/, `${RAIL_OPEN}<main$1`).replace("</main>", `</main>${RAIL_CLOSE}`);
+}
+
+export function stripRail(html) {
+  return html.split(RAIL_OPEN + "<main").join("<main").split("</main>" + RAIL_CLOSE).join("</main>");
+}

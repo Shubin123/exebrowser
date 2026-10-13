@@ -13,7 +13,7 @@
 
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { resolve, join, relative } from "node:path";
-import { loadPages, noAdReason } from "./ads.mjs";
+import { RAIL_OPEN, loadPages, noAdReason } from "./ads.mjs";
 
 const ROOT = resolve(process.cwd(), "public");
 const pages = JSON.parse(readFileSync(resolve(process.cwd(), "scripts", "app-pages.json"), "utf8"));
@@ -532,6 +532,8 @@ if (existsSync(uiFile)) {
     const reason = noAdReason(rel, html, bySlug);
     if (has && reason) wrong.push(`${rel} has the ad tag but must not (${reason})`);
     if (!has && !reason) wrong.push(`${rel} is missing the ad tag`);
+    if (!has && html.includes(RAIL_OPEN)) wrong.push(`${rel} has the ad rail but no ads`);
+    if (has && !html.includes(RAIL_OPEN)) wrong.push(`${rel} has ads but no desktop ad rail`);
   }
   for (const w of wrong.slice(0, 10)) problems.push(`ads: ${w} — run node scripts/inject-ads.mjs`);
   if (wrong.length > 10) problems.push(`ads: …and ${wrong.length - 10} more`);

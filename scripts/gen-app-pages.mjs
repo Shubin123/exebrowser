@@ -804,7 +804,7 @@ const render = (p, L = EN) => `<!DOCTYPE html>
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#0e0d0b" />
 <link rel="alternate" type="application/rss+xml" title="ExeBrowser — new games and posts" href="/feed.xml" />
-<link rel="stylesheet" href="/style.css?v=42" />
+<link rel="stylesheet" href="/style.css?v=43" />
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-C8C4TZC5F1" crossorigin="anonymous"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -1011,7 +1011,7 @@ const indexHtml = `<!DOCTYPE html>
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#0e0d0b" />
 <link rel="alternate" type="application/rss+xml" title="ExeBrowser — new games and posts" href="/feed.xml" />
-<link rel="stylesheet" href="/style.css?v=42" />
+<link rel="stylesheet" href="/style.css?v=43" />
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-C8C4TZC5F1" crossorigin="anonymous"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -1149,7 +1149,7 @@ const notFoundHtml = `<!DOCTYPE html>
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#0e0d0b" />
 <link rel="alternate" type="application/rss+xml" title="ExeBrowser — new games and posts" href="/feed.xml" />
-<link rel="stylesheet" href="/style.css?v=42" />
+<link rel="stylesheet" href="/style.css?v=43" />
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-C8C4TZC5F1" crossorigin="anonymous"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -1304,7 +1304,7 @@ function renderCategory(cat) {
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#0e0d0b" />
 <link rel="alternate" type="application/rss+xml" title="ExeBrowser — new games and posts" href="/feed.xml" />
-<link rel="stylesheet" href="/style.css?v=42" />
+<link rel="stylesheet" href="/style.css?v=43" />
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-C8C4TZC5F1" crossorigin="anonymous"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -1409,7 +1409,7 @@ const catIndexHtml = `<!DOCTYPE html>
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#0e0d0b" />
 <link rel="alternate" type="application/rss+xml" title="ExeBrowser — new games and posts" href="/feed.xml" />
-<link rel="stylesheet" href="/style.css?v=42" />
+<link rel="stylesheet" href="/style.css?v=43" />
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-C8C4TZC5F1" crossorigin="anonymous"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -1539,7 +1539,7 @@ function localisedListing(L, isHome) {
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#0e0d0b" />
 <link rel="alternate" type="application/rss+xml" title="ExeBrowser — new games and posts" href="/feed.xml" />
-<link rel="stylesheet" href="/style.css?v=42" />
+<link rel="stylesheet" href="/style.css?v=43" />
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-C8C4TZC5F1" crossorigin="anonymous"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
