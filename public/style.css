@@ -1253,18 +1253,22 @@ body.dos-playing { overflow: hidden; }
 .preflight .preflight-actions a,
 .preflight .preflight-actions .linklike { margin-right: 0.75rem; }
 
-/* ── Desktop ad rail (wrapped around <main> by scripts/inject-ads.mjs) ─── */
+/* ── Desktop ad rail (wrapped around <main> by scripts/inject-ads.mjs) ───
+   The page stays centred at every width. The rail only appears when the
+   right-hand margin is wide enough to hold it (880px column + 24px gap +
+   300px rail on each side), so an unfilled rail never shifts the page and a
+   filled one never moves the content (no CLS). */
 .ad-layout { display: contents; }
 .ad-rail { display: none; }
-@media (min-width: 1250px) {
-  .ad-layout {
-    display: flex;
-    justify-content: center;
-    gap: 24px;
-    padding: 0 1rem;
+@media (min-width: 1540px) {
+  .ad-layout { display: block; position: relative; }
+  .ad-rail {
+    display: block;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(50% + 440px + 24px);
+    width: 300px;
+    padding-top: 1.5rem;
   }
-  .ad-layout > main { flex: 0 1 880px; min-width: 0; margin: 0; }
-  /* Stretches to the page height so Mediavine's sticky unit can follow the
-     reader (and stay beside the game while it is played). Fixed width: no CLS. */
-  .ad-rail { display: block; flex: 0 0 300px; padding-top: 1.5rem; }
 }
