@@ -1253,6 +1253,25 @@ body.dos-playing { overflow: hidden; }
 .preflight .preflight-actions a,
 .preflight .preflight-actions .linklike { margin-right: 0.75rem; }
 
+/* Run's refusal of a 64-bit / non-x86 EXE, shown where the program would
+   have drawn (app.js showScreenMessage). The black screen used to be the
+   only answer. */
+.screen-message {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--fg);
+  background: rgba(0, 0, 0, 0.88);
+}
+.screen-message strong { color: var(--bad); font-size: 1.1rem; }
+.screen-message p { margin: 0; max-width: 34rem; line-height: 1.5; }
+
 /* ── Desktop ad rail (wrapped around <main> by scripts/inject-ads.mjs) ───
    The page stays centred at every width. The rail only appears when the
    right-hand margin is wide enough to hold it (880px column + 24px gap +

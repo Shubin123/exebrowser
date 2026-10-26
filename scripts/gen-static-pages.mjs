@@ -32,7 +32,7 @@ import { STATIC_PAGES, staticLinkFor } from "./i18n/static-pages.mjs";
 
 const ROOT = resolve(process.cwd(), "public");
 
-const STYLE = "/style.css?v=44";
+const STYLE = "/style.css?v=45";
 const GA = `<script async src="https://www.googletagmanager.com/gtag/js?id=G-C8C4TZC5F1" crossorigin="anonymous"></script>
 <script>
   window.dataLayer = window.dataLayer || [];

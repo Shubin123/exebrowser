@@ -123,6 +123,23 @@
     const prefix = level === "error" ? "[!]" : level === "warn" ? "[~]" : "[·]";
     els.logOutput.textContent += `${ts} ${prefix} ${msg}\n`;
     els.logOutput.scrollTop = els.logOutput.scrollHeight;
+    if (state.bootInFlight || state.booted) noticeWineRefusal(msg);
+  }
+
+  // Run refuses a 64-bit entry up front (archBlock), but the program it does
+  // start can still ask Wine for a 64-bit one — a launcher, a .bat, an
+  // updater. Wine 1.7.55 says so on the console only:
+  //   err:process:create_process L"D:\\userapp\\X.EXE" not supported on this installation (x86_64 binary)
+  // If nothing has been drawn yet, that is the whole story, so it goes on the
+  // screen. Once the program has painted, its own error dialog says it better.
+  const WINE_REFUSED_64 = /create_process L"([^"]+)" not supported on this installation \(x86_64 binary\)/;
+  function noticeWineRefusal(msg) {
+    const m = WINE_REFUSED_64.exec(msg);
+    if (!m || state.frameOutcome === "frame") return;
+    const name = m[1].split(/\\+/).pop();
+    showScreenMessage({ kase: "x64" }, name);
+    setStatus(T("runChildStatus", "Stopped — see the message above."));
+    track("preflight_action", { action: "wine_refused_x64" });
   }
 
   // ── Translation ─────────────────────────────────────────────────────────
@@ -568,6 +585,7 @@
     state.preflight = null;
     showPreflight(null);
     showHandoffNotice(null);
+    if (!state.booted) showScreenMessage(null);
   }
 
   // After stagedFiles is populated, find EXEs, refresh the entry-picker, and
@@ -635,6 +653,35 @@
     }
   }
 
+  // The COFF Machine field of a PE file, or null for anything that is not one
+  // (DOS, NE, LE, not an EXE at all). Deliberately not pe-inspect.js: the Run
+  // gate below must hold even on a page that doesn't load the parser, or when
+  // the parser throws on a malformed file.
+  const PE_I386 = 0x014c;
+  const PE_MACHINE_NAMES = { 0x8664: "x86-64", 0xaa64: "ARM64", 0x01c0: "ARM", 0x01c4: "ARM", 0x0200: "Itanium" };
+  function peMachine(bytes) {
+    if (!bytes || bytes.length < 0x40 || bytes[0] !== 0x4d || bytes[1] !== 0x5a) return null;
+    const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const lfanew = dv.getUint32(0x3c, true);
+    if (lfanew < 0x40 || lfanew + 6 > bytes.length) return null;
+    if (dv.getUint32(lfanew, true) !== 0x00004550) return null; // "PE\0\0"
+    return dv.getUint16(lfanew + 4, true);
+  }
+
+  // Every engine on this page is 32-bit Wine. Its loader reads the same
+  // Machine field and refuses anything that isn't i386 ("Bad EXE format"),
+  // after which the tab sat on a black screen saying "Running…" for good.
+  // Unlike the rest of the preflight this is not a guess about the file, it
+  // is the check Wine itself makes, so Run stops here instead.
+  function archBlock(bytes) {
+    const machine = peMachine(bytes);
+    if (machine == null || machine === PE_I386) return null;
+    return {
+      kase: machine === 0x8664 ? "x64" : "cpu",
+      cpu: PE_MACHINE_NAMES[machine] || "0x" + machine.toString(16).padStart(4, "0"),
+    };
+  }
+
   // ─── preflight: read the visitor's EXE before booting it ───────────────
   // Until this existed the only check was the MZ test above, logged to a
   // console most people never open. A 64-bit build, a DOS game, a .NET tool or
@@ -643,9 +690,10 @@
   // parser) already knows every one of those cases, so the loader asks it
   // first and says what it found — in a sentence, before the download.
   //
-  // It never blocks Run. The parser reads what a file declares, and saying
-  // "this won't run" about something that would have is worse than letting
-  // the visitor find out.
+  // It never blocks Run, with one exception (archBlock: a non-x86 Machine
+  // field, which Wine refuses too). The parser reads what a file declares,
+  // and saying "this won't run" about something that would have is worse
+  // than letting the visitor find out.
   const MODERN_CRT = /^(vcruntime140|msvcp140|ucrtbase|api-ms-win-crt|msvcr(90|100|110|120))/i;
 
   // Named once so the "crt" preflight case can say which DLL it is, not just
@@ -709,7 +757,7 @@
   // are set with textContent, so a translation cannot inject markup.
   const PF_TEXT = {
     x64: ["pfX64", "64-bit program",
-      "pfX64Body", "The engine here runs 32-bit Windows programs, so this one will most likely not start. If the download page offers a 32-bit (x86) build of the same version, that one usually runs."],
+      "pfX64Body", "The engine here runs 32-bit Windows programs only, so Run will not start this one. If the download page offers a 32-bit (x86) build of the same version, that one usually runs."],
     win16: ["pfWin16", "16-bit Windows program — switched engine",
       "pfWin16Body", "This was built for Windows 3.x. The engine is now set to Wine 3.1 (16-bit), the one that can run it."],
     win32: ["pfWin32", "32-bit program — switched engine back",
@@ -840,12 +888,57 @@
       actions.append(b);
     }
     if (actions.childNodes.length) box.append(actions);
-    if (PF_BAD.has(kase)) {
+    // "Headers are occasionally wrong" is not true of the Machine field: Wine
+    // reads it too, and Run won't start the file (archBlock).
+    if (PF_BAD.has(kase) && !archBlock(state.pickedExe && state.pickedExe.bytes)) {
       const note = document.createElement("p");
       note.className = "muted small";
       note.textContent = T("pfRunAnyway", "You can still press Run — this is read from the file's headers, and they are occasionally wrong.");
       box.append(note);
     }
+  }
+
+  // What Run says, on the screen where the program would have appeared, when
+  // it refuses a 64-bit or non-x86 file (archBlock) — or when Wine refuses
+  // one mid-run because the visitor's program tried to start it.
+  function showScreenMessage(block, child) {
+    let box = document.getElementById("screen-message");
+    if (!block) {
+      if (box) box.remove();
+      if (!state.booted && !state.bootInFlight) els.screenContainer.classList.remove("has-content");
+      return;
+    }
+    if (!box) {
+      box = document.createElement("div");
+      box.id = "screen-message";
+      box.className = "screen-message";
+      box.setAttribute("role", "alert");
+      els.screenContainer.append(box);
+    }
+    box.replaceChildren();
+    const head = document.createElement("strong");
+    const body = document.createElement("p");
+    if (child) {
+      head.textContent = T("runChildX64", "It tried to start a 64-bit program");
+      body.textContent = T("runChildX64Body", "Wine here is a 32-bit build, so it refused to start {name}, which is 64-bit. If that program has a 32-bit (x86) build, put that in the folder instead.", { name: child });
+    } else if (block.kase === "x64") {
+      head.textContent = T("runBlockedX64", "64-bit program — not started");
+      body.textContent = T("runBlockedX64Body", "Wine on this page is a 32-bit build. It checks the same header field Windows does and refuses 64-bit programs, so starting this would only end on a blank screen. If the download page offers a 32-bit (x86) build of the same version, that one usually runs here.");
+    } else {
+      head.textContent = T("runBlockedCpu", "Built for {cpu} — not started", { cpu: block.cpu });
+      body.textContent = T("runBlockedCpuBody", "The emulator here runs x86 code only, and this file's header says it was built for a different processor. Look for an x86 (32-bit) build of the same program.");
+    }
+    box.append(head, body);
+    // Not for a child: what would travel is the 32-bit program that started
+    // it, and the 64-bit engine has no 32-bit Wine to run that with.
+    if (!child && block.kase === "x64") {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = T("pfOpen64", "Try the experimental 64-bit engine — your file comes with you →");
+      b.addEventListener("click", () => handoffToX64());
+      box.append(b);
+    }
+    els.screenContainer.classList.add("has-content");
   }
 
   // A small, neutral confirmation that a handoff from the other loader (DOS
@@ -1597,6 +1690,16 @@
       return;
     }
 
+    const blocked = archBlock(state.pickedExe.bytes);
+    if (blocked) {
+      log(`Not started: ${state.pickedExe.path} is built for ${blocked.cpu}, and Wine here runs 32-bit x86 programs only.`, "warn");
+      setStatus(T("runBlockedStatus", "Not started — see the message above."));
+      showScreenMessage(blocked);
+      els.screenContainer.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      track("preflight_action", { action: "blocked_" + blocked.kase });
+      return;
+    }
+
     state.bootInFlight = true;
     els.runBtn.disabled = true;
     els.bootBtn.disabled = true;
@@ -1628,6 +1731,7 @@
       track("boot_success", { boot_ms: Math.round(performance.now() - t0) });
       startHeartbeat();
       watchFirstFrame(t0, (outcome, ms) => {
+        state.frameOutcome = outcome;
         setFetchStatusText("");
         log(`First frame: ${outcome} after ${ms} ms.`);
         if (byo) track("byo_result", Object.assign({ outcome, ttff_ms: ms }, byoParams()));
