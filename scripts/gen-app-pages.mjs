@@ -861,7 +861,7 @@ ${clientStringsHtml(L)}${p.iframeUrl
 <script src="/recent.js?v=8"></script>
     <script src="/pwa.js?v=2"></script>
 <script src="/embed.js?v=12"></script>
-<script src="/app.js?v=28"></script>`}
+<script src="/app.js?v=29"></script>`}
 <script>window.renderResumeBar && renderResumeBar("resume-bar");</script>${NEWSLETTER_ACTION ? '\n<script src="/newsletter.js?v=1"></script>' : ""}
 </body>
 </html>

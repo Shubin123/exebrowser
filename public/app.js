@@ -1460,6 +1460,17 @@
   // way the old "pick the file again there" redirect did. Exposed on
   // window.ExeBrowser so embed.js's variant <select> can call it too.
   async function handoffToX64() {
+    // Ren'Py games run on Ren'Py's engine here, wherever the visitor sent
+    // them. The 64-bit page runs a single .exe, so it got the launcher on its
+    // own, which can only say "This program requires Windows 10 or greater
+    // to run." The engine picker's wine64 option lands here as soon as a file
+    // is staged, so a Ren'Py folder just starts.
+    if (state.renpy || (state.pickedExe && isRenpyLauncher(state.pickedExe.bytes))) {
+      log("Not sending this to the 64-bit engine: it's a Ren'Py game, which runs on Ren'Py's web engine here.", "warn");
+      if (els.wineVariant && els.wineVariant.value === "x64") els.wineVariant.value = "default";
+      track("preflight_action", { action: "open_64_renpy" });
+      return bootAndRun();
+    }
     track("preflight_action", { action: "open_64" });
     await window.ExeHandoff?.put(state.stagedFiles, state.pickedExe && state.pickedExe.path);
     location.href = "/64/?chunked=1#handoff";

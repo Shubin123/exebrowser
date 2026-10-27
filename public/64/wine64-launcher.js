@@ -635,6 +635,16 @@
         reader.onerror = function () { alert("Could not read " + name + "."); };
         reader.onload = function () {
             var bytes = new Uint8Array(reader.result);
+            // A Ren'Py game's .exe only starts the Python in its lib/ folder;
+            // run alone here it says "This program requires Windows 10 or
+            // greater to run." The Windows loader runs Ren'Py games, from
+            // their whole folder, on Ren'Py's own web engine.
+            if (isRenpyLauncher(bytes)) {
+                setStatusText("This is a Ren'Py game's launcher");
+                alert(name + " is the launcher of a Ren'Py game; the game itself is the folder around it. " +
+                      "Open the site's Windows loader (\"Run your EXE\") and pick the game's whole folder: it runs there on Ren'Py's web engine.");
+                return;
+            }
             var dest = HOME_IN_MEMFS + "/" + name;       // Z:\home\username\<name>
             try {
                 // Overwrite any prior upload of the same name.
@@ -666,6 +676,20 @@
         reader.readAsArrayBuffer(file);
     }
     window.uploadAndRunExe = uploadAndRunExe;
+
+    // The launcher loads lib\py3-...\librenpython.dll, a name nothing else
+    // carries (same test as app.js isRenpyLauncher).
+    function isRenpyLauncher(bytes) {
+        if (bytes.length > 4 * 1024 * 1024 || bytes[0] !== 0x4d || bytes[1] !== 0x5a) return false;
+        var want = "librenpython";
+        outer: for (var i = 0; i + want.length * 2 <= bytes.length; i++) {
+            for (var j = 0; j < want.length; j++) {
+                if (bytes[i + j * 2] !== want.charCodeAt(j) || bytes[i + j * 2 + 1] !== 0) continue outer;
+            }
+            return true;
+        }
+        return false;
+    }
 
     // --- cross-page handoff from /load-exe/ ---------------------------------
     // A visitor who picked an x64 EXE on the Windows loader (or proactively

@@ -40,7 +40,10 @@ on emulator performance and on what happens with 64-bit programs. From
   The runtime is Ren'Py 8.5.3, fetched by `scripts/build-renpy-web.mjs`. A
   game's `renpy/` files have to match it, so games made with other Ren'Py
   versions get a message saying so. Picking only the launcher `.exe` explains
-  that the game is the folder.
+  that the game is the folder. A Ren'Py game is never sent to `/64/`, even
+  with "wine64" picked. That page runs one `.exe`, so it got the launcher on
+  its own, which only says "This program requires Windows 10 or greater to
+  run." `/64/`'s own upload explains this instead of running the launcher.
 - **Dropping a folder works, and reading shows progress.** A dropped folder
   arrives in the drop event as one entry that can't be read, and the loader
   tried to read it as a file, so nothing happened. It now walks the folder.
