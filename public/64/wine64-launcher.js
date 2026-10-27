@@ -103,7 +103,9 @@
     var BASE = param("base");
     if (BASE === null) BASE = "./";
     if (BASE.length && !BASE.endsWith("/")) BASE += "/";
-    var CHUNKED = param("chunked") === "1"; // fetch zips as <zip>.partNNN via manifest
+    // Fetch zips as <zip>.partNNN via manifest. On by default: only the parts
+    // are deployed, so the site's plain /64/ links 404'd on the whole zips.
+    var CHUNKED = param("chunked") !== "0";
 
     // --- current run configuration ------------------------------------------
     // These describe the run being booted RIGHT NOW. The bare-page defaults come
@@ -637,6 +639,10 @@
             try {
                 // Overwrite any prior upload of the same name.
                 try { getFS().unlink(dest); } catch (e) {}
+                // The prefix is a zip mounted in Boxedwine's own VFS; this MEMFS
+                // directory only exists once wine has written to it, which it
+                // hasn't when a handed-over file arrives as the session starts.
+                mkdirTreeHost(getFS(), HOME_IN_MEMFS);
                 getFS().writeFile(dest, bytes);
             } catch (e) {
                 console.log("uploadAndRunExe: writeFile " + dest + " failed: " + e);
@@ -667,9 +673,21 @@
     // re-selecting the file: that page stashes the staged bytes in the same
     // IndexedDB mailbox the DOS player uses (public/handoff.js) before
     // navigating to /64/?chunked=1#handoff. This drains that mailbox once the
-    // sandbox is ready to accept an upload — the same readiness
-    // uploadAndRunExe() itself waits on (whenFsReady), so this never fires
-    // uploadAndRunExe's "not ready yet" alert.
+    // wine session is up. Module.FS alone (whenFsReady) isn't enough: it
+    // exists from preRun, before the prefix's home is unpacked, so the write
+    // failed, and without a session launchApp reloads the page and drops the
+    // file.
+    function whenSessionReady() {
+        return new Promise(function (resolve, reject) {
+            var waited = 0, STEP = 250, LIMIT = 300000;
+            (function poll() {
+                if (sessionReady()) return resolve();
+                waited += STEP;
+                if (waited >= LIMIT) return reject(new Error("wine session never became ready (" + LIMIT + "ms)"));
+                setTimeout(poll, STEP);
+            })();
+        });
+    }
     function consumeHandoff() {
         if (window.location.hash !== "#handoff" || !window.ExeHandoff) return;
         try { history.replaceState(null, "", window.location.pathname + window.location.search); } catch (e) {}
@@ -686,7 +704,7 @@
             // comment above) — say so honestly rather than silently dropping
             // the rest of a folder/zip upload.
             if (h.files.length > 1) notifyHandoffPartial(h.files.length, name);
-            whenFsReady().then(function () {
+            whenSessionReady().then(function () {
                 var file = new File([entryFile.bytes], name, { type: "application/octet-stream" });
                 uploadAndRunExe(file);
             }).catch(function (e) {
@@ -1259,6 +1277,13 @@
         console.error("wine64-launcher unhandledrejection:", ev.reason);
         setStatusText("Boot failed: " + (ev.reason && ev.reason.message ? ev.reason.message : ev.reason));
     });
+    // A file handed over from /load-exe/ is written into the prefix's home and
+    // spawned into the running session, and the bare ?chunked=1 boot (wine64
+    // --version) brings up neither, so the write failed. Boot Notepad, the
+    // page's first app, instead.
+    if (window.location.hash === "#handoff" && window.ExeHandoff && !USE_PREFIX && !DO_BOOT) {
+        applyRunConfig("notepad.exe", { session: param("session") !== "0" });
+    }
     if (window.setActiveApp) try { window.setActiveApp(PROG || "--version"); } catch (e) {}
     bootWine();
     consumeHandoff();

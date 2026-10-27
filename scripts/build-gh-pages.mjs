@@ -21,10 +21,9 @@
 //     all the on-demand engines need. /api/subscribe has nowhere to go, so the
 //     newsletter form is dropped.
 //   - _headers and _redirects are Cloudflare's and mean nothing here. No page
-//     outside /64/ needs a header. /64/ would fall back to its
-//     coi-serviceworker, but its wasm and file systems are gitignored and
-//     uploaded from a local disk by wrangler, so unless they're in public/64/
-//     it is replaced by a page that says where the 64-bit engine runs.
+//     outside /64/ needs a header, and /64/ gets cross-origin isolation from
+//     its coi-serviceworker. /64/'s wasm and file systems are gitignored and
+//     reach exebrowser.com from a local disk, so they are fetched from there.
 //   - Upstream's Google Analytics and Mediavine tags carry exebrowser.com's
 //     account IDs, so they are taken out of every page.
 //
@@ -98,38 +97,78 @@ fs.cpSync(PUBLIC, OUT, {
   filter: (src) => !SKIP.has(path.basename(src)),
 });
 
-// ─── /64/ ──────────────────────────────────────────────────────────────────
-// Without its wasm and file systems /64/ loads and then fails, so it gets a
-// page saying where the engine is instead, in the offline page's frame.
-
-if (!fs.existsSync(path.join(PUBLIC, "64", "boxedwine64.wasm"))) {
-  const frame = fs.readFileSync(path.join(PUBLIC, "offline", "index.html"), "utf8");
-  const page = frame
-    .replace(/<title>[^<]*<\/title>/, "<title>64-bit engine — ExeBrowser</title>")
-    .replace(/<section class="card">[\s\S]*?<\/section>/, `<section class="card">
-    <h1>The 64-bit engine isn't on this copy</h1>
-    <p>This copy of ExeBrowser is built from its GitHub repository, and the experimental 64-bit engine's runtime and Wine files aren't kept there. It runs at <a href="https://exebrowser.com/64/">exebrowser.com/64/</a>; pick your file again there.</p>
-    <p><a class="button primary" href="/load-exe/">Back to the loader</a></p>
-  </section>`);
-  if (page === frame || !page.includes("isn't on this copy")) throw new Error("offline/index.html changed shape");
-  for (const f of ["index.html", "wine64.html"]) fs.writeFileSync(path.join(OUT, "64", f), page);
-}
-
 // ─── Wine roots ────────────────────────────────────────────────────────────
 
-const sha256 = (file) => crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+const sha256 = (...files) => {
+  const h = crypto.createHash("sha256");
+  for (const f of files) h.update(fs.readFileSync(f));
+  return h.digest("hex");
+};
+const download = (url, to) => {
+  console.log("downloading", url);
+  execFileSync("curl", ["-sSL", "--fail", "--retry", "3", "-o", to, url], { stdio: "inherit" });
+};
 
 fs.mkdirSync(CACHE, { recursive: true });
 fs.mkdirSync(path.join(OUT, ROOTS_DIR), { recursive: true });
 for (const r of ROOTS) {
   const cached = path.join(CACHE, r.file);
-  if (!fs.existsSync(cached) || sha256(cached) !== r.sha256) {
-    console.log("downloading", r.url);
-    execFileSync("curl", ["-sSL", "--fail", "--retry", "3", "-o", cached, r.url], { stdio: "inherit" });
-  }
+  if (!fs.existsSync(cached) || sha256(cached) !== r.sha256) download(r.url, cached);
   const sum = sha256(cached);
   if (sum !== r.sha256) throw new Error(`${r.file}: sha256 ${sum} != pinned ${r.sha256}`);
   fs.copyFileSync(cached, path.join(OUT, ROOTS_DIR, r.file));
+}
+
+// ─── /64/ ──────────────────────────────────────────────────────────────────
+// The 64-bit engine's emscripten glue (boxedwine64.js) is committed and
+// byte-identical to what exebrowser.com/64/ serves, so it matches that wasm;
+// the wasm and the file systems aren't in git, so they
+// come from there, pinned by sha256: the wasm, and each file system's parts
+// end to end, as the launcher stitches them. They were built from
+// andrewnakas/Boxedwine64 at 806e248f. If they can't be had, /64/ becomes a
+// page saying where the 64-bit engine runs, rather than one that loads and
+// then fails, and the Actions run carries a warning.
+
+const X64_FROM = "https://exebrowser.com/64/";
+const X64_CACHE = path.join(ROOT, "assets-too-big-for-pages", "gh-pages-64");
+const X64 = [
+  { name: "boxedwine64.wasm", sha256: "7850a5095a4787b915670e0e2c4d94d66e7358ea7d8c5dc90ccc01522c42fdf6" },
+  { name: "glibc-rootfs64.zip", sha256: "81988f8813c71829dc3c10568af3b5070c7e74465a017aa1bc1b34b608d0ab8b" },
+  { name: "prefix64.zip", sha256: "95ff3e7ab24313fa957492aae5e9c336079df440ec8f6a327e7983ad2e8a7b5f" },
+  { name: "wine64.zip", sha256: "6dac17bdb9a525d9cfd766fed61767241e60ef135a1512fc3524e63db7912597" },
+];
+
+function fetch64() {
+  fs.mkdirSync(X64_CACHE, { recursive: true });
+  for (const x of X64) {
+    const manifest = path.join(PUBLIC, "64", x.name + ".manifest.json");
+    const parts = fs.existsSync(manifest) ? JSON.parse(fs.readFileSync(manifest, "utf8")).parts : [x.name];
+    const cached = parts.map((f) => path.join(X64_CACHE, f));
+    const ok = () => cached.every((f) => fs.existsSync(f)) && sha256(...cached) === x.sha256;
+    if (!ok()) {
+      for (const [i, f] of parts.entries()) download(X64_FROM + f, cached[i]);
+      if (!ok()) throw new Error(`${x.name}: sha256 doesn't match the pinned ${x.sha256}`);
+    }
+    for (const [i, f] of parts.entries()) fs.copyFileSync(cached[i], path.join(OUT, "64", f));
+  }
+}
+
+if (!fs.existsSync(path.join(PUBLIC, "64", "boxedwine64.wasm"))) {
+  try {
+    fetch64();
+  } catch (e) {
+    console.log(`::warning::/64/ has no engine on this copy: ${e.message}`);
+    const frame = fs.readFileSync(path.join(PUBLIC, "offline", "index.html"), "utf8");
+    const page = frame
+      .replace(/<title>[^<]*<\/title>/, "<title>64-bit engine — ExeBrowser</title>")
+      .replace(/<section class="card">[\s\S]*?<\/section>/, `<section class="card">
+    <h1>The 64-bit engine isn't on this copy</h1>
+    <p>This copy of ExeBrowser couldn't fetch the experimental 64-bit engine's runtime and Wine files when it was built. It runs at <a href="https://exebrowser.com/64/">exebrowser.com/64/</a>; pick your file again there.</p>
+    <p><a class="button primary" href="/load-exe/">Back to the loader</a></p>
+  </section>`);
+    if (page === frame || !page.includes("isn't on this copy")) throw new Error("offline/index.html changed shape");
+    for (const f of ["index.html", "wine64.html"]) fs.writeFileSync(path.join(OUT, "64", f), page);
+  }
 }
 
 // ─── rewrite ───────────────────────────────────────────────────────────────
@@ -151,6 +190,33 @@ const PATCHES = [
   [/^(app|embed)\.js$/, /location\.pathname\.replace\(\/\^\\\/\|\\\/\$\/g, ""\)/g,
     `location.pathname.replace(/^${esc(P).replace(/\//g, "\\/")}\\/|\\/$/g, "")`, 2],
   [/^sw\.js$/, /\/\^\\\/\(64\|apps\|api\)\\\/\//g, `/^${esc(P).replace(/\//g, "\\/")}\\/(64|apps|api)\\//`, 1],
+  // /64/ gets isolation from coi-serviceworker here, not from headers, and
+  // the site's own sw.js (scope: the whole site) may already control the page.
+  // coi took that worker for its own failing one, reloaded once to "degrade",
+  // and never registered; it now only counts itself.
+  [/^64\/coi-serviceworker\.js$/, /const controlling = n\.serviceWorker && n\.serviceWorker\.controller;/g,
+    "const controlling = n.serviceWorker && n.serviceWorker.controller &&\n" +
+    "            /\\/coi-serviceworker\\.js$/.test(n.serviceWorker.controller.scriptURL);", 1],
+  [/^64\/coi-serviceworker\.js$/, /registration\.active && !n\.serviceWorker\.controller/g,
+    "registration.active && !controlling", 1],
+  // It also reloaded on updatefound, before the new worker was active, so the
+  // reload often went out unintercepted and, having "reloaded by itself",
+  // it never tried again. Reload once the worker is activated.
+  [/^64\/coi-serviceworker\.js$/, /(registration\.addEventListener\("updatefound", \(\) => \{\n)(\s+!coi\.quiet && console\.log\("Reloading page to make use of updated COOP\/COEP Service Worker\."\);\n\s+window\.sessionStorage\.setItem\("coiReloadedBySelf", "updatefound"\);\n\s+coi\.doReload\(\);\n)/g,
+    'registration.addEventListener("updatefound", () => {\n' +
+    "                    const sw = registration.installing;\n" +
+    "                    const reload = () => {\n" +
+    '                        !coi.quiet && console.log("Reloading page to make use of updated COOP/COEP Service Worker.");\n' +
+    '                        window.sessionStorage.setItem("coiReloadedBySelf", "updatefound");\n' +
+    "                        coi.doReload();\n" +
+    "                    };\n" +
+    "                    if (!sw) return reload();\n" +
+    '                    sw.addEventListener("statechange", () => { if (sw.state === "activated") reload(); });\n', 1],
+  // A page that isn't isolated yet is about to be reloaded by coi, so leave
+  // the file handed over from /load-exe/ (and #handoff) for the page that is.
+  [/^64\/wine64-launcher\.js$/, /if \(window\.location\.hash !== "#handoff" \|\| !window\.ExeHandoff\) return;/g,
+    'if (window.location.hash !== "#handoff" || !window.ExeHandoff) return;\n' +
+    "        if (window.crossOriginIsolated === false) return;", 1],
   // ScummVM's wasm fetches its data from DATA_PATH, "/data", by absolute path
   // (why public/data/ exists); these two helpers turn that path into a URL.
   [/^apps\/scummvm\/scummvm\.js$/, /url=UTF8ToString\(url\);/g,

@@ -32,6 +32,12 @@ on emulator performance and on what happens with 64-bit programs. From
 - **A GitHub Pages copy**, at https://shubin123.github.io/exebrowser/, so the
   fork's changes can be tried without a Cloudflare account. See
   [GitHub Pages](#github-pages).
+- **The 64-bit hand-off works.** The file you pick on `/load-exe/` now runs
+  in `/64/`, on exebrowser.com too. Before, `/64/` booted only
+  `wine64 --version` and wrote the file before the Wine prefix's home
+  existed, so the write failed and the file was dropped. It now boots Notepad
+  to bring up the prefix and session, creates the home directory, and waits
+  for the session before spawning the file.
 
 ### Measured (headless Chrome, Apple M4)
 
@@ -305,11 +311,19 @@ which you can run yourself (`node scripts/build-gh-pages.mjs`, output in
 - **What's left out.** Upstream's Google Analytics and Mediavine tags, which
   carry exebrowser.com's account IDs, are removed. So is the newsletter form,
   which posts to a Function.
-- **`/64/`.** Its wasm and file systems aren't in git, so on this copy `/64/`
-  is a page pointing at exebrowser.com/64/.
+- **`/64/`.** Its wasm and file systems (~225 MB) aren't in git. The build
+  fetches the ones exebrowser.com/64/ serves, pinned by sha256, and the
+  committed glue matches them byte for byte. GitHub Pages can't send
+  COOP/COEP, so `/64/` gets cross-origin isolation from its
+  `coi-serviceworker` instead. The build patches that worker twice. It took
+  the site's own `sw.js` for itself and gave up. It also reloaded before its
+  worker was active, which made it fail at random. If the fetch fails, `/64/`
+  becomes a page pointing at exebrowser.com/64/, and the Actions run carries a
+  warning.
 
 The workflow also runs the LibreQuake and Warzone 2100 data scripts, so the
-copy has their gitignored data. Canonical links still point at exebrowser.com.
+copy has their gitignored data. All of it comes to ~905 MB, under GitHub
+Pages' 1 GB limit. Canonical links still point at exebrowser.com.
 
 ## Refreshing the runtime
 
