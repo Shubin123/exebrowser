@@ -188,6 +188,24 @@ Then in the Cloudflare dashboard:
 
 This re-downloads Boxedwine's published JS/WASM from `boxedwine.org`. Commit the updated files in `public/boxedwine/`.
 
+### The JIT engine (beta)
+
+`public/boxedwine/build/jit/` is built from upstream Boxedwine source rather
+than downloaded, because the JIT isn't in boxedwine.org's published build:
+
+```bash
+./scripts/build-boxedwine-jit.sh   # needs emcc; pinned commit, writes NOTICE.md
+```
+
+The CPU compiles hot x86 blocks to WebAssembly instead of interpreting them:
+3.4–6× on a CPU-bound benchmark against the default engine. It boots
+upstream's Wine 11 web root through `functions/api/bwfs/`, read on demand by
+Range request, and keeps each program's writes in IndexedDB (`storageKey`).
+It is opt-in: the engine picker on `/load-exe/`, or `?engine=jit` on any page
+that would use the default engine. Browsers without Wasm exception handling,
+tail calls and SIMD fall back to the default engine. The script header
+explains why it doesn't run the default engine's Wine 1.7.55 root yet.
+
 ## License
 
 ExeBrowser frontend: MIT. Boxedwine (bundled in `public/boxedwine/`) is GPL-2.0. Wine is LGPL.

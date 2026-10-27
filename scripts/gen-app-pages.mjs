@@ -860,7 +860,7 @@ ${clientStringsHtml(L)}${p.iframeUrl
 <script src="/save-core.js?v=6"></script>
 <script src="/recent.js?v=8"></script>
     <script src="/pwa.js?v=2"></script>
-<script src="/embed.js?v=11"></script>
+<script src="/embed.js?v=12"></script>
 <script src="/app.js?v=26"></script>`}
 <script>window.renderResumeBar && renderResumeBar("resume-bar");</script>${NEWSLETTER_ACTION ? '\n<script src="/newsletter.js?v=1"></script>' : ""}
 </body>

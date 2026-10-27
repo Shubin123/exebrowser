@@ -57,6 +57,21 @@
       rootBaseUrl: "/api/fs/",
       rootBasename: "minWine31v6",
     },
+    // A current Boxedwine build whose CPU compiles hot x86 blocks to
+    // WebAssembly instead of interpreting them (scripts/build-boxedwine-jit.sh),
+    // on the Wine 11 root upstream tests its web build with. Not the default
+    // engine's Wine 1.7.55 root: current Boxedwine boots that one but its
+    // Wine processes crash before any window appears (see the script). Its
+    // shell is upstream's, which talks to the page differently: see
+    // runUpstreamShell.
+    jit: {
+      label: "Wine 11 — Win32, JIT engine (faster, beta, ~100 MB root read on demand)",
+      runtimeBase: "/boxedwine/build/jit/",
+      shell: "upstream",
+      loadMode: "ondemand",
+      rootBaseUrl: "/api/bwfs/",
+      rootBasename: "TinyCore15Wine11.0-web",
+    },
     r18: {
       label: "Boxedwine 18R2 (experimental, inline, 19 MB)",
       runtimeBase: "/boxedwine/build/18r2/",
@@ -119,6 +134,7 @@
   // ─── helpers ───────────────────────────────────────────────────────────
 
   function log(msg, level = "info") {
+    msg = String(msg).replace(/\x1b\[[0-9;?]*[A-Za-z]/g, ""); // Wine 11's cursor hide/show
     const ts = new Date().toLocaleTimeString();
     const prefix = level === "error" ? "[!]" : level === "warn" ? "[~]" : "[·]";
     els.logOutput.textContent += `${ts} ${prefix} ${msg}\n`;
@@ -249,6 +265,9 @@
       ["message", "div"], ["modalLink", "a"], ["modalLinkExe", "a"],
       ["openModalExeClick", "button"], ["tree", "div"], ["items", "div"],
       ["selectedItem", "div"], ["loadStatus", "div"],
+      // also looked up by the upstream shell (jit variant)
+      ["pointerLock", "input", { type: "checkbox" }], ["savejitbtn", "button"],
+      ["cdromdisc", "select"], ["cdromejectbtn", "button"],
     ];
     for (const [id, tag, attrs] of stubs) {
       if (!document.getElementById(id)) {
@@ -428,10 +447,14 @@
     const variant = activeVariant();
     const runtimeBase = variant.runtimeBase;
 
-    await loadScript(runtimeBase + "jszip.min.js");
+    // The upstream shell doesn't use JSZip or BrowserFS (it mounts zips in
+    // the emulator), but buildAppZip still needs JSZip.
+    await loadScript((variant.shell === "upstream" ? WINE_VARIANTS.default.runtimeBase : runtimeBase) + "jszip.min.js");
     els.bootProgress.value = 25;
 
-    if (variant.runtimeBase === "/boxedwine/build/18r2/") {
+    if (variant.shell === "upstream") {
+      // nothing else to load
+    } else if (variant.runtimeBase === "/boxedwine/build/18r2/") {
       await loadScript(runtimeBase + "browserfs.min.js");
     } else {
       await loadScript(runtimeBase + "browserfs.boxedwine.js?v=8");
@@ -452,6 +475,7 @@
 
     const variant = activeVariant();
     const runtimeBase = variant.runtimeBase;
+    if (variant.shell === "upstream") return runUpstreamShell(variant);
     const shellSrc = await fetchText(runtimeBase + "boxedwine-shell.js?v=2");
     els.bootProgress.value = 60;
 
@@ -521,6 +545,187 @@
         ", root=" + rootBasename +
         (overlayBasename ? ", overlay=" + overlayBasename : "") +
         ", program=" + exeName + ").");
+  }
+
+  // The upstream shell (jit variant) takes the same Config.urlParams idea but
+  // different parameters, fetches with fetch() rather than XHR, mounts zips
+  // inside the emulator, and keeps every write under one directory (ROOT) in
+  // IndexedDB, keyed per program by storageKey. Two of its functions are
+  // replaced from inside the same script: loadFile, so the visitor's zip
+  // comes from memory and the ~100 MB root is not downloaded whole, and
+  // createFile, which mounts that root as a Range-backed file instead.
+  async function runUpstreamShell(variant) {
+    const shellSrc = await fetchText(variant.runtimeBase + "boxedwine-shell.js?v=1");
+    els.bootProgress.value = 60;
+
+    const path = state.pickedExe.path;
+    const slash = path.lastIndexOf("/");
+    const workDir = "c:/files/userapp" + (slash >= 0 ? "/" + path.slice(0, slash) : "");
+    const exeName = path.slice(slash + 1);
+    // Base URLs go in as parameters too: the shell's setConfiguration()
+    // rereads them from urlParams and would blank anything set on Config.
+    const urlParams = [
+      "rootBase=" + encodeURIComponent(variant.rootBaseUrl),
+      "root=" + encodeURIComponent(variant.rootBasename),
+      ...(variant.overlayBasename ? [
+        "overlayBase=" + encodeURIComponent(variant.overlayBaseUrl),
+        "overlay=" + encodeURIComponent(variant.overlayBasename),
+      ] : []),
+      "app=" + encodeURIComponent(VIRTUAL_APP_ZIP),
+      "p=" + encodeURIComponent(exeName),
+      "w=" + encodeURIComponent(workDir),
+      "storageKey=" + encodeURIComponent(resolveWineSlug()),
+      "sound=true",
+      "bpp=32",
+    ].join("&");
+    const rootUrl = variant.rootBaseUrl + variant.rootBasename + ".zip";
+
+    const configCode = `
+      // ── ExeBrowser-injected configuration (upstream shell) ──
+      Config.urlParams = ${JSON.stringify(urlParams)};
+      Config.showSaveJITCache = false;
+
+      // The shell's own loadFile logs a failed fetch and stops there, which
+      // left the page on "Preparing..." for good.
+      loadFile = function (prefix, filename, callback) {
+        if (filename === Config.appZipFile) {
+          window.__exeBrowserAppZip().then(callback);
+        } else if (filename === Config.rootZipFile) {
+          callback(null); // createFile below mounts it lazily
+        } else {
+          fetch(prefix + filename)
+            .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.arrayBuffer(); })
+            .then(function (b) { window.__exeBrowserFetched(b.byteLength); callback(new Uint8Array(b)); })
+            .catch(function (e) { window.__exeBrowserBootError(prefix + filename, e); });
+        }
+      };
+      var __bwCreateFile = createFile;
+      createFile = function (dir, name, buf) {
+        if (buf === null && name === Config.rootZipFile) {
+          window.__exeBrowserRangeFile(FS, dir, name, ${JSON.stringify(rootUrl)});
+        } else {
+          __bwCreateFile(dir, name, buf);
+        }
+      };
+
+      Module.canvas = document.getElementById("canvas");
+      Module.print = function (t) { window.__exeBrowserLog(String(t)); };
+      Module.printErr = function (t) { window.__exeBrowserLog(String(t), "warn"); };
+      Module.setStatus = function (t) { if (t) window.__exeBrowserStatus(t); };
+      Module.locateFile = function (path) { return ${JSON.stringify(variant.runtimeBase)} + path; };
+      window.__BoxedwineConfig = Config;
+      window.__BoxedwineModule = Module;
+      window.__BoxedwineRoot = function () { return ROOT; };
+    `;
+    presentCanvas();
+    window.__exeBrowserAppZip = () => state.appZipBlob.arrayBuffer().then((b) => new Uint8Array(b));
+    window.__exeBrowserFetched = bumpFetchProgress;
+    window.__exeBrowserRangeFile = createRangeFile;
+    window.__exeBrowserBootError = (what, err) => {
+      log(`Boot failed: could not load ${what} (${err.message}).`, "error");
+      setStatus(T("wineBootFailed", "Boot failed. See console."));
+      track("boot_error", { error_message: ("fetch " + what + ": " + err.message).slice(0, 120) });
+    };
+    await runInlineScript(shellSrc + "\n;\n" + configCode);
+    if (!window.__BoxedwineConfig) {
+      throw new Error("Combined shell+config script failed to expose Config.");
+    }
+    log("Wine shell configured (variant=" + state.selectedVariant + ", root=" + variant.rootBasename +
+        " on demand" + (variant.overlayBasename ? ", overlay=" + variant.overlayBasename : "") + ", program=" + path + ").");
+  }
+
+  // What the jit runtime needs from the browser, in one 67-byte module:
+  // try_table (exnref exceptions), return_call (tail calls) and a v128
+  // (SIMD). Chrome 137+, Firefox 131+, Safari 18.4+. An older browser can't
+  // compile boxedwine.wasm at all and would sit on a black screen.
+  const JIT_FEATURES = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 8, 2, 96, 0, 1, 123, 96, 0, 0, 3, 3, 2, 0, 0,
+    13, 3, 1, 0, 1, 10, 37, 2, 30, 0, 2, 64, 31, 64, 1, 2, 0, 1, 11, 11, 253, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 11, 4, 0, 18, 0, 11]);
+  function jitSupported() {
+    try { return WebAssembly.validate(JIT_FEATURES); } catch { return false; }
+  }
+
+  // The upstream runtime draws Wine's windows into a second, 2D canvas laid
+  // over #canvas (its shell.html stacks the two); #canvas keeps the WebGL
+  // context and the input. Without this one the program ran behind a black
+  // screen. It follows #canvas's box, which SDL resizes.
+  function presentCanvas() {
+    let c = document.getElementById("boxedwine-webgl-canvas-0");
+    if (c) return c;
+    c = document.createElement("canvas");
+    c.id = "boxedwine-webgl-canvas-0";
+    c.className = "present-canvas";
+    els.screenContainer.append(c);
+    const follow = () => {
+      const r = els.canvas;
+      c.style.left = r.offsetLeft + "px";
+      c.style.top = r.offsetTop + "px";
+      c.style.width = r.offsetWidth + "px";
+      c.style.height = r.offsetHeight + "px";
+    };
+    new ResizeObserver(follow).observe(els.canvas);
+    addEventListener("resize", follow);
+    follow();
+    return c;
+  }
+
+  // An Emscripten file that holds a remote zip and reads it by Range request
+  // as the emulator asks, so a Wine root of thousands of files costs only
+  // what the program opens. This runs on the page's own thread, where a synchronous
+  // XHR may not ask for an ArrayBuffer: the x-user-defined charset passes the
+  // bytes through responseText unmangled instead (as browserfs.boxedwine.js
+  // does for the default engine). Chunks are kept for the session.
+  const RANGE_CHUNK = 512 * 1024;
+  function createRangeFile(FS, dir, name, url) {
+    let size = -1;
+    const chunks = new Map();
+    const get = (from, to) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("GET", url, false);
+      xhr.setRequestHeader("Range", `bytes=${from}-${to}`);
+      xhr.overrideMimeType("text/plain; charset=x-user-defined");
+      xhr.send(null);
+      // A 200 is the whole file: a server or cache that ignored Range.
+      if (xhr.status === 200) size = xhr.responseText.length;
+      else if (xhr.status !== 206) throw new Error(`Range ${from}-${to} of ${url}: HTTP ${xhr.status}`);
+      const total = /\/(\d+)$/.exec(xhr.getResponseHeader("Content-Range") || "");
+      if (total) size = +total[1];
+      const text = xhr.responseText;
+      const bytes = new Uint8Array(text.length);
+      for (let i = 0; i < text.length; i++) bytes[i] = text.charCodeAt(i) & 0xff;
+      bumpFetchProgress(bytes.length);
+      if (xhr.status === 200) {
+        for (let n = 0; n * RANGE_CHUNK < size; n++) chunks.set(n, bytes.subarray(n * RANGE_CHUNK, (n + 1) * RANGE_CHUNK));
+        return bytes.subarray(from, to + 1);
+      }
+      return bytes;
+    };
+    const chunk = (n) => {
+      let c = chunks.get(n);
+      if (!c) {
+        c = get(n * RANGE_CHUNK, Math.min(size, (n + 1) * RANGE_CHUNK) - 1);
+        chunks.set(n, c);
+      }
+      return c;
+    };
+    chunks.set(0, get(0, RANGE_CHUNK - 1)); // also learns the size
+    const node = FS.createFile(dir, name, { isDevice: false }, true, false);
+    Object.defineProperty(node, "usedBytes", { get: () => size });
+    node.stream_ops = Object.assign({}, node.stream_ops, {
+      read(stream, buffer, offset, length, position) {
+        const n = Math.max(0, Math.min(length, size - position));
+        for (let done = 0; done < n;) {
+          const at = position + done;
+          const c = chunk(Math.floor(at / RANGE_CHUNK));
+          const from = at % RANGE_CHUNK;
+          const take = Math.min(c.length - from, n - done);
+          buffer.set(c.subarray(from, from + take), offset + done);
+          done += take;
+        }
+        return n;
+      },
+    });
+    log(`Mounted ${name} on demand (${formatBytes(size)}, fetched in ${formatBytes(RANGE_CHUNK)} pieces as needed).`);
   }
 
   // Stage 3: inject the Emscripten runtime. Its preRun calls initialSetup
@@ -1146,6 +1351,11 @@
   //   '/root/files' → homeOverlay (the app's working dir; user-app writes)
   // Return both writable layers so we can zip the union and not miss either.
   function getWritableLayers() {
+    if (activeVariant().shell === "upstream") {
+      const FS = window.FS || (window.__BoxedwineModule && window.__BoxedwineModule.FS);
+      if (!FS || !window.__BoxedwineRoot) throw new Error("Wine is not running yet.");
+      return [{ mount: "", writable: emscriptenLayer(FS, window.__BoxedwineRoot()) }];
+    }
     const BFS = window.BrowserFS;
     if (!BFS) throw new Error("BrowserFS not initialized — boot Wine first.");
     const fs = BFS.BFSRequire("fs");
@@ -1169,6 +1379,22 @@
     }
     if (out.length === 0) throw new Error("No OverlayFS layers found.");
     return out;
+  }
+
+  // The upstream shell has no overlays: everything Wine or the program wrote
+  // is under one Emscripten directory. This gives that directory the three
+  // BrowserFS calls collectWritableFiles makes. lstat, so the dosdevices
+  // drive links are skipped rather than walked twice.
+  function emscriptenLayer(FS, root) {
+    const at = (p) => root + (p === "/" ? "" : p);
+    return {
+      readdirSync: (p) => FS.readdir(at(p)).filter((n) => n !== "." && n !== ".."),
+      statSync: (p) => {
+        const mode = FS.lstat(at(p)).mode;
+        return { isDirectory: () => FS.isDir(mode), isFile: () => FS.isFile(mode) };
+      },
+      readFileSync: (p) => FS.readFile(at(p)),
+    };
   }
 
   // Walk a BrowserFS layer synchronously (sync API works on InMemory) and
@@ -1445,11 +1671,11 @@
 
       for (const { mount, writable } of layers) {
         const files = collectWritableFiles(writable, mount);
-        perLayerCounts.push(`${mount}: ${files.length}`);
+        perLayerCounts.push(`${mount || "root"}: ${files.length}`);
         // Top-level folder in the output zip mirrors the BFS mount so users
         // can see which writes came from where. `/root/base` → "system",
         // `/root/files` → "appdir" — friendlier than raw mount paths.
-        const folder = mount === "/root/base" ? "system" : "appdir";
+        const folder = mount === "/root/base" || mount === "" ? "system" : "appdir";
         for (const f of files) {
           const bytes = f.bytes.buffer
             ? new Uint8Array(f.bytes.buffer, f.bytes.byteOffset, f.bytes.byteLength)
@@ -1644,7 +1870,8 @@
       const now = performance.now();
       if (document.visibilityState === "visible") visibleMs += now - last;
       last = now;
-      if (canvasColours(els.canvas) >= FRAME_MIN_COLOURS) finish("frame");
+      const present = document.getElementById("boxedwine-webgl-canvas-0");
+      if (Math.max(canvasColours(els.canvas), canvasColours(present)) >= FRAME_MIN_COLOURS) finish("frame");
       else if (visibleMs > FRAME_TIMEOUT_MS) finish("no_frame");
       else if (onTick) onTick(visibleMs);
     }, FRAME_POLL_MS);
@@ -1700,6 +1927,12 @@
       return;
     }
 
+    if (activeVariant().shell === "upstream" && !jitSupported()) {
+      log("This browser can't run the JIT engine (it needs WebAssembly exception handling, tail calls and SIMD), so the default engine runs this instead.", "warn");
+      state.selectedVariant = "default";
+      if (els.wineVariant) els.wineVariant.value = "default";
+    }
+
     state.bootInFlight = true;
     els.runBtn.disabled = true;
     els.bootBtn.disabled = true;
@@ -1738,7 +1971,10 @@
         else track("first_frame", { outcome, ttff_ms: ms });
       }, makeFrameWaitTicker());
 
-      if (WINE_PERSIST_ON) {
+      // The upstream shell (jit) persists its own writes in IndexedDB, keyed
+      // per program (storageKey), so the overlay snapshots below are not
+      // needed there.
+      if (WINE_PERSIST_ON && activeVariant().shell !== "upstream") {
         // The overlays only exist once Wine has finished mounting, and how
         // long that takes depends on the connection and the machine. Four
         // seconds was a guess, and on a slow boot it fired into nothing —
@@ -1926,9 +2162,20 @@
     refreshEntryPicker();
   }
 
+  // ?engine=jit runs the page on the JIT engine wherever it would have used
+  // the default one, so a hosted /run/ title can be tried on it (and on Wine
+  // 11) without a picker. Titles pinned to another engine (gecko, win3x,
+  // r18) keep it.
+  const ENGINE_OVERRIDE = new URLSearchParams(location.search).get("engine") === "jit" ? "jit" : null;
+  if (ENGINE_OVERRIDE) {
+    state.selectedVariant = ENGINE_OVERRIDE;
+    if (els.wineVariant) els.wineVariant.value = ENGINE_OVERRIDE;
+  }
+
   window.ExeBrowser = {
     // Lock in a Wine variant (e.g. "gecko" for Pinball) before boot.
     setVariant(name) {
+      if (ENGINE_OVERRIDE && name === "default") name = ENGINE_OVERRIDE;
       if (WINE_VARIANTS[name]) {
         state.selectedVariant = name;
         // A deliberate choice outranks one the preflight made.

@@ -85,6 +85,7 @@
       <label for="wineVariant"><strong>${escapeHtml(T("wineEngine", "Wine engine:"))}</strong></label>
       <select id="wineVariant">
         <option value="default" selected>${escapeHtml(T("wineVariantDefault", "Wine 1.7.55 · Win32 — almost everything from 1995–2008"))}</option>
+        <option value="jit">${escapeHtml(T("wineVariantJit", "Wine 11 · Win32, faster JIT engine (beta) — programs run 3–6× faster, slower to start"))}</option>
         <option value="gecko">${escapeHtml(T("wineVariantGecko", "Wine 1.7.55 · Win32 + Gecko — apps that ask for Internet Explorer"))}</option>
         <option value="win3x">${escapeHtml(T("wineVariant16", "Wine 3.1 · 16-bit Windows 3.x — 1990–1994 apps"))}</option>
         <option value="r18">${escapeHtml(T("wineVariantR18", "Boxedwine 18R2 — older engine, sometimes runs what the default won't"))}</option>
@@ -96,6 +97,7 @@
     ? ""
     : `<select id="wineVariant" hidden>
       <option value="default">default</option>
+      <option value="jit">jit</option>
       <option value="gecko">gecko</option>
       <option value="win3x">win3x</option>
       <option value="r18">r18</option>

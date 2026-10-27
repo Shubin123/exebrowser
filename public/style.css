@@ -271,6 +271,9 @@ progress::-moz-progress-bar { background: var(--accent); }
   background: black;
 }
 #canvas:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* The JIT engine's 2D layer over #canvas (app.js presentCanvas); input
+   still lands on #canvas underneath. */
+.present-canvas { position: absolute; pointer-events: none; z-index: 1; }
 
 #screen-empty-state {
   position: absolute;
