@@ -4,6 +4,110 @@ Run Windows `.exe` files directly in your browser using WebAssembly + Wine. No i
 
 Built on [Boxedwine](https://www.boxedwine.org/) (Wine + a 32-bit x86 CPU emulator compiled to WebAssembly).
 
+## This is a fork
+
+This repository is a fork of
+[andrewnakas/exebrowser](https://github.com/andrewnakas/exebrowser), branched
+at `b353806` with no changes of its own before that point. The fork's work is
+on emulator performance and on what happens with 64-bit programs. From
+[Architecture](#architecture) down, this README documents the site as a whole.
+
+### What the fork adds
+
+- **Run refuses 64-bit EXEs up front.** The loader reads the PE header's
+  Machine field itself, without needing `pe-inspect.js`. For anything that
+  isn't i386 it shows a message where the program would have drawn, with the
+  handoff to `/64/`, and downloads nothing. Before, Wine 1.7.55 logged "Bad
+  EXE format" and the page sat on a black screen saying "Running…". A 32-bit
+  program that tries to start a 64-bit one (a launcher, a `.bat`) gets the
+  same message, taken from Wine's console line.
+- **An opt-in JIT engine.** Upstream Boxedwine compiles hot x86 blocks to
+  WebAssembly. See [The JIT engine (beta)](#the-jit-engine-beta) for how it
+  is built and served. It is opt-in: the engine picker on `/load-exe/`, or
+  `?engine=jit` on any page.
+- **Faster JIT-engine boot.** It fetches the Wine root's boot pieces in
+  parallel before starting, instead of one blocking request at a time.
+- **A centred canvas.** A canvas narrower than its frame (the JIT engine
+  sizes it to a game's GL window) now stays centred.
+
+### Measured (headless Chrome, Apple M4)
+
+A no-CRT 32-bit benchmark (sieve, crc32, x87 matmul, `rep movsb`, a switch
+interpreter, fib) gives the same checksums on every engine:
+
+| | Default engine (2019 build, Wine 1.7.55) | JIT engine (upstream `8ab37e7b`, Wine 11) |
+|---|---|---|
+| Benchmark total, lower is better | 1,553–1,629 ms | 403–412 ms |
+| First window, fresh prefix | 2–3 s | 10.5–11 s (12 s at 60 ms latency) |
+| First-visit download | 60 MB | 63 MB |
+| Direct3D 9 (device + clear + present) | `CreateDevice` fails, `D3DERR_INVALIDCALL` | renders, through WineD3D → OpenGL → WebGL |
+
+The same upstream commit built without the JIT scores 1,743 ms, so the
+speed-up comes from the JIT, not from a newer emulator. On console programs
+with the Wine 1.7.55 root the JIT build scores 272 ms. SkiFree, 7-Zip and
+Notepad++ behave the same on both engines; Notepad++ stops at its
+`langs.xml` dialog on both.
+
+### Why the JIT engine isn't the default yet
+
+Current upstream Boxedwine boots the default engine's `fullWine1.7.55-v8`
+root, and console programs run. But several Wine processes then crash on
+`Unhandled page fault on read access to 0xffffffff at address 0xc0dd8382`,
+and no window is ever drawn. The interpreter build of the same commit fails
+the same way, so the JIT is not the cause. The crash disappeared when the
+boot was slowed by syscall logging, which points to a race. The JIT engine
+therefore boots upstream's own web root, `TinyCore15Wine11.0-web.zip`.
+
+To make the JIT the default, either:
+
+- find the 1.7.55 regression (bisect upstream), or
+- retest the hosted catalogue on Wine 11.
+
+The JIT engine also starts slower, because Wine 11 starts more services.
+Threaded builds (`multiThreadedJit`) need COOP/COEP, which the ad pages can't
+send, so only the single-threaded `jit` target is usable here.
+
+### Findings on the other Boxedwine forks
+
+- **[danoon2/Boxedwine](https://github.com/danoon2/Boxedwine)** (upstream)
+  - It already has the tiered 32-bit x86→WebAssembly JIT, so the fork uses
+    it instead of writing one.
+  - `make jit WASM_PROFILING=1` names the generated blocks for profiling in
+    Chrome DevTools.
+  - Its web build already routes Direct3D through WineD3D to WebGL, using the
+    `drive_c/webgl` DLLs in the Wine 11 root.
+- **[andrewnakas/Boxedwine64](https://github.com/andrewnakas/Boxedwine64)**
+  - Its head (`58ecb0ff`) boots Debian wine64 8.0 to notepad, and CI
+    smoke-tests that. The check is weak: a window mapped and the canvas
+    partly lit.
+  - `/64/` here runs `806e248f` (June 2026), about 4.5 months behind head.
+  - x86-64 is interpreter-only, with no JIT. There is no memory protection
+    or page-fault signal, and no AVX.
+  - General 64-bit app support looks 6–12+ months away.
+  - Its self-test passes 907/907.
+  - Its lazy HTTP-Range zip mount needs pthreads, so the single-threaded
+    32-bit engine can't use it.
+- **[Kn0tzer/Boxedwine64](https://github.com/Kn0tzer/Boxedwine64)**
+  - Agent-built: about 1,300 commits in 3½ weeks.
+  - Its x86-64→WebAssembly JIT is real but opt-in, and about 1.27× faster
+    on its one benchmark.
+  - DXVK and vkd3d-proton run over a Vulkan command stream replayed on
+    WebGPU.
+  - The D3D "pixel tests" run on SwiftShader and have no reference images.
+  - Its own results record D3D9 drawing black and D3D10 drawing nothing.
+  - It can't be rebuilt from what is published: its runtime tarball is in an
+    unpublished release.
+  - The only cherry-pick candidates are its 32-bit SSE3–SSE4.2 instruction
+    additions, which were not tested here.
+
+### On a WebGPU path
+
+For Direct3D up to 9, WineD3D's OpenGL backend over WebGL already works in
+the JIT engine, so WebGPU would buy little. WebGPU matters for D3D10–12,
+through DXVK or vkd3d. That is mostly 64-bit software, and the only
+prototype (Kn0tzer's) doesn't yet draw D3D9 or D3D10 correctly. It is parked
+until 64-bit programs run.
+
 ## Architecture
 
 ```
