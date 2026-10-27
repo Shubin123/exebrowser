@@ -41,6 +41,12 @@ on emulator performance and on what happens with 64-bit programs. From
   game's `renpy/` files have to match it, so games made with other Ren'Py
   versions get a message saying so. Picking only the launcher `.exe` explains
   that the game is the folder.
+- **Dropping a folder works, and reading shows progress.** A dropped folder
+  arrives in the drop event as one entry that can't be read, and the loader
+  tried to read it as a file, so nothing happened. It now walks the folder.
+  While a folder or zip is read, the drop area shows a file count, the MB so
+  far and a bar; a 240 MB game used to leave the page still for the whole
+  read.
 - **The 64-bit hand-off works.** The file you pick on `/load-exe/` now runs
   in `/64/`, on exebrowser.com too. Before, `/64/` booted only
   `wine64 --version` and wrote the file before the Wine prefix's home

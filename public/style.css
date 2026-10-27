@@ -248,6 +248,8 @@ progress::-moz-progress-bar { background: var(--accent); }
   background: var(--accent-soft);
 }
 .dropzone p { margin: 0.25rem 0; }
+/* Reading a picked or dropped folder (app.js stageFileList). */
+.stage-progress { display: block; width: 100%; margin: 0.5rem 0 0.25rem; }
 
 .muted { color: var(--muted); font-size: 0.9rem; }
 .center { text-align: center; }

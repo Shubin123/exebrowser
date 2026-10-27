@@ -29,7 +29,7 @@ export const STATIC_PAGES = {
     resumeBar: true,
     // embed.js builds the runtime DOM that app.js binds to, so the order here
     // is load-bearing, exactly as on the English page.
-    scripts: ["/save-core.js?v=6", "/recent.js?v=8", "/embed.js?v=12", "/handoff.js?v=1", "/pe-inspect.js?v=3", "/app.js?v=27", "/embed-pointer.js?v=1"],
+    scripts: ["/save-core.js?v=6", "/recent.js?v=8", "/embed.js?v=12", "/handoff.js?v=1", "/pe-inspect.js?v=3", "/app.js?v=28", "/embed-pointer.js?v=1"],
   },
   "/open-exe-file/": {
     kind: "page",

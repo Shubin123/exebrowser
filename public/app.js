@@ -142,6 +142,9 @@
     // Ren'Py's web engine instead of Wine.
     renpy: null,
   };
+  // Bumped by every new pick (clearStaged), so a folder still being read
+  // stops adding to the files that replaced it.
+  let stageToken = 0;
 
   // ─── helpers ───────────────────────────────────────────────────────────
 
@@ -831,6 +834,7 @@
   // — a list of { path, bytes } — then build the virtual app zip at boot.
 
   function clearStaged() {
+    stageToken++;
     state.stagedFiles = [];
     state.candidateExes = [];
     state.pickedExe = null;
@@ -842,6 +846,7 @@
     state.preflight = null;
     state.renpy = null;
     stopRenpy();
+    hideStageProgress();
     showPreflight(null);
     showHandoffNotice(null);
     if (!state.booted) showScreenMessage(null);
@@ -1095,6 +1100,7 @@
     const rt = RENPY_RUNTIMES[g.version];
     if (!rt) {
       log(`Not started: this is a Ren'Py ${g.version || "(unknown version)"} game, and this page has Ren'Py's web engine for ${RENPY_SUPPORTED} only.`, "warn");
+      els.bootStatus.hidden = false;
       setStatus(T("runBlockedStatus", "Not started — see the message above."));
       showScreenMessage({ kase: "renpy_version" });
       els.screenContainer.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -1102,6 +1108,8 @@
       return;
     }
     els.runBtn.disabled = true;
+    // /load-exe/ keeps the status line hidden until something is running.
+    els.bootStatus.hidden = false;
     setStatus(T("renpyPacking", "Packing the game for Ren'Py's web engine…"));
     await new Promise((r) => setTimeout(r, 0)); // let the status paint first
     let blob;
@@ -1540,31 +1548,125 @@
 
   async function handleFolder(fileList) {
     if (!fileList || fileList.length === 0) return;
-    clearStaged();
+    await stageFileList(Array.from(fileList, (f) => ({ file: f, rel: f.webkitRelativePath || f.name })), "folder");
+  }
 
-    // webkitRelativePath looks like "MyApp/subdir/foo.dll". Drop the common
-    // top-level folder so the zip root matches the folder root.
-    const files = Array.from(fileList);
+  // ─── reading the visitor's files, with progress ────────────────────────
+  // A game's folder can be over a thousand files and hundreds of MB, read one
+  // at a time, and nothing on the page moved while that happened, so it
+  // looked broken. The count and a bar go where the files were dropped.
+  let stageShownAt = 0;
+  function showStageProgress(text, value, max) {
+    let bar = document.getElementById("stageProgress");
+    if (!bar) {
+      bar = document.createElement("progress");
+      bar.id = "stageProgress";
+      bar.className = "stage-progress";
+      els.fileInfo.after(bar);
+    }
+    if (max) {
+      bar.max = max;
+      bar.value = value;
+    } else {
+      bar.removeAttribute("value"); // indeterminate
+    }
+    els.fileInfo.textContent = text;
+  }
+  function hideStageProgress() {
+    document.getElementById("stageProgress")?.remove();
+  }
+  function stageFailed(err) {
+    hideStageProgress();
+    clearStaged();
+    log("Couldn't read the files: " + err.message, "error");
+    els.fileInfo.textContent = T("stageFailed", "Couldn't read those files: {msg}", { msg: err.message });
+  }
+  // Lets the browser paint before a stretch of synchronous work.
+  const nextPaint = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+
+  // One big file (a game's 170 MB archive) is most of the wait, so read it in
+  // slices and report each one rather than sit still until it's all in.
+  const READ_SLICE = 8 * 1024 * 1024;
+  async function readFile(file, onBytes) {
+    if (file.size <= 2 * READ_SLICE) {
+      const b = new Uint8Array(await file.arrayBuffer());
+      onBytes(b.length);
+      return b;
+    }
+    const out = new Uint8Array(file.size);
+    for (let off = 0; off < file.size; off += READ_SLICE) {
+      const part = new Uint8Array(await file.slice(off, off + READ_SLICE).arrayBuffer());
+      out.set(part, off);
+      onBytes(part.length);
+    }
+    return out;
+  }
+
+  // { file, rel } pairs from the folder picker or a drop, rel relative to what
+  // was picked. webkitRelativePath looks like "MyApp/subdir/foo.dll": drop the
+  // common top-level folder so the zip root matches the folder root.
+  async function stageFileList(files, source) {
+    clearStaged();
+    const token = ++stageToken;
     const firstSlash = (p) => p.indexOf("/");
     const topLevel = files
-      .map((f) => f.webkitRelativePath || f.name)
-      .map((p) => (firstSlash(p) >= 0 ? p.slice(0, firstSlash(p)) : ""))
+      .map((x) => (firstSlash(x.rel) >= 0 ? x.rel.slice(0, firstSlash(x.rel)) : ""))
       .filter(Boolean);
-    const allSameTop = topLevel.length > 0 && topLevel.every((t) => t === topLevel[0]);
-
-    for (const f of files) {
-      const raw = f.webkitRelativePath || f.name;
-      const stripped = allSameTop ? raw.slice(topLevel[0].length + 1) : raw;
-      if (!stripped) continue;
-      const safe = sanitizeRelPath(stripped);
-      if (!safe) continue;
-      const bytes = new Uint8Array(await f.arrayBuffer());
-      if (/\.exe$/i.test(safe)) warnIfNotPe(safe, bytes);
-      state.stagedFiles.push({ path: safe, bytes, raw: stripped });
+    const allSameTop = topLevel.length === files.length && topLevel.every((t) => t === topLevel[0]);
+    const totalBytes = files.reduce((n, x) => n + x.file.size, 0);
+    const progress = (done, bytes, force) => {
+      const now = performance.now();
+      if (!force && now - stageShownAt < 100) return;
+      stageShownAt = now;
+      showStageProgress(T("stageReading", "Reading files… {done} of {total} ({size} of {totalSize})", {
+        done, total: files.length, size: formatBytes(bytes), totalSize: formatBytes(totalBytes),
+      }), bytes, totalBytes || 1);
+    };
+    progress(0, 0, true);
+    let done = 0, bytesRead = 0;
+    try {
+      for (const x of files) {
+        done++;
+        const stripped = allSameTop ? x.rel.slice(topLevel[0].length + 1) : x.rel;
+        if (!stripped) continue;
+        const safe = sanitizeRelPath(stripped);
+        if (!safe) continue;
+        const bytes = await readFile(x.file, (n) => { bytesRead += n; progress(done, bytesRead); });
+        if (token !== stageToken) return;
+        if (/\.exe$/i.test(safe)) warnIfNotPe(safe, bytes);
+        state.stagedFiles.push({ path: safe, bytes, raw: stripped });
+      }
+    } catch (err) {
+      if (token === stageToken) stageFailed(err);
+      return;
     }
-    log(`Loaded folder: ${files.length} files staged.`);
-    state.entrySource = "folder";
+    hideStageProgress();
+    log(`Loaded ${source === "files" ? "dropped files" : "folder"}: ${files.length} files staged (${formatBytes(bytesRead)}).`);
+    state.entrySource = source;
     refreshEntryPicker();
+  }
+
+  // A dropped folder arrives in dataTransfer.files as one File that can't be
+  // read; its contents are only reachable through the item's entry, and the
+  // entries only during the drop event, so the caller takes them first.
+  async function entryFiles(entries) {
+    const out = [];
+    const fileOf = (en) => new Promise((res, rej) => en.file(res, rej));
+    const children = async (dir) => {
+      const reader = dir.createReader();
+      const all = [];
+      for (;;) {
+        const batch = await new Promise((res, rej) => reader.readEntries(res, rej));
+        if (!batch.length) return all;
+        all.push(...batch);
+      }
+    };
+    const walk = async (en, prefix) => {
+      if (en.isFile) out.push({ file: await fileOf(en), rel: prefix + en.name });
+      else if (en.isDirectory) for (const c of await children(en)) await walk(c, prefix + en.name + "/");
+    };
+    for (const en of entries) await walk(en, "");
+    return out;
   }
 
   async function handleZip(file) {
@@ -1574,16 +1676,33 @@
       return;
     }
     clearStaged();
-    const buf = await file.arrayBuffer();
-    const zip = await loadZip(buf);
-    const entries = listZipEntries(zip);
-    for (const e of entries) {
-      const safe = sanitizeRelPath(e.path);
-      if (!safe) continue;
-      const bytes = await readZipEntry(zip, e);
-      if (/\.exe$/i.test(safe)) warnIfNotPe(safe, bytes);
-      state.stagedFiles.push({ path: safe, bytes, raw: e.path });
+    const token = ++stageToken;
+    try {
+      const text = T("stageReadingZip", "Reading {name} ({size})…", { name: file.name, size: formatBytes(file.size) });
+      showStageProgress(text, 0, file.size || 1);
+      let got = 0;
+      const buf = (await readFile(file, (n) => { got += n; showStageProgress(text, got, file.size || 1); })).buffer;
+      if (token !== stageToken) return;
+      await nextPaint(); // JSZip 2.x opens the whole zip synchronously
+      const zip = await loadZip(buf);
+      const entries = listZipEntries(zip);
+      for (const [i, e] of entries.entries()) {
+        if (i % 20 === 0) {
+          showStageProgress(T("stageUnzipping", "Unpacking the zip… {done} of {total} files", { done: i, total: entries.length }), i, entries.length);
+          await nextPaint();
+          if (token !== stageToken) return;
+        }
+        const safe = sanitizeRelPath(e.path);
+        if (!safe) continue;
+        const bytes = await readZipEntry(zip, e);
+        if (/\.exe$/i.test(safe)) warnIfNotPe(safe, bytes);
+        state.stagedFiles.push({ path: safe, bytes, raw: e.path });
+      }
+    } catch (err) {
+      if (token === stageToken) stageFailed(err);
+      return;
     }
+    hideStageProgress();
     log(`Loaded zip: ${state.stagedFiles.length} files extracted.`);
     state.entrySource = "zip";
     refreshEntryPicker();
@@ -2369,27 +2488,32 @@
   els.dropzone.addEventListener("drop", async (e) => {
     e.preventDefault();
     els.dropzone.classList.remove("hover");
+    const entries = Array.from(e.dataTransfer.items || [], (it) =>
+      it.kind === "file" && it.webkitGetAsEntry ? it.webkitGetAsEntry() : null).filter(Boolean);
     const files = Array.from(e.dataTransfer.files || []);
+    if (entries.some((en) => en.isDirectory)) {
+      clearStaged();
+      const token = ++stageToken;
+      showStageProgress(T("stageListing", "Looking through the folder…"));
+      let list;
+      try {
+        list = await entryFiles(entries);
+      } catch (err) {
+        if (token === stageToken) stageFailed(err);
+        return;
+      }
+      if (token !== stageToken) return;
+      await stageFileList(list, "folder");
+      return;
+    }
     if (files.length === 0) return;
     if (files.length === 1 && /\.exe$/i.test(files[0].name)) {
       handleSingleExe(files[0]);
     } else if (files.length === 1 && /\.zip$/i.test(files[0].name)) {
       handleZip(files[0]);
     } else {
-      // Browsers don't populate webkitRelativePath for dragged-in items unless
-      // we walk e.dataTransfer.items (which we keep deferred). For now treat
-      // dropped multi-file as flat list at zip root.
-      clearStaged();
-      for (const f of files) {
-        const safe = sanitizeRelPath(f.name);
-        if (!safe) continue;
-        const bytes = new Uint8Array(await f.arrayBuffer());
-        if (/\.exe$/i.test(safe)) warnIfNotPe(safe, bytes);
-        state.stagedFiles.push({ path: safe, bytes });
-      }
-      log(`Dropped ${state.stagedFiles.length} files (flat).`);
-      state.entrySource = "files";
-      refreshEntryPicker();
+      // Loose files, no folder: each at the zip root.
+      await stageFileList(files.map((f) => ({ file: f, rel: f.name })), "files");
     }
   });
 
