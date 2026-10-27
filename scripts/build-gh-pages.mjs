@@ -84,6 +84,7 @@ const VENDOR = [
   /^boxedwine\/build\//,
   /^dosbox(-snap)?\//,
   /^64\/(boxedwine64|boxedwine-shell|coi-serviceworker)\.js$/,
+  /^renpy\/[^/]+\/renpy(-pre)?\.js$/,
   /^apps\/.*\.js$/,
 ];
 const TEXT = /\.(html|css|js|mjs|json|webmanifest)$/;

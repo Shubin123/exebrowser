@@ -118,6 +118,8 @@
     depsLoaded: false,
     // Files staged for the virtual app zip. Each: { path: "RELATIVE/IN/ZIP", bytes: Uint8Array }
     // path uses forward slashes and is what Wine sees relative to its working dir.
+    // The visitor's own files also keep raw, the path as given: Wine gets
+    // upper-cased 8.3-safe names, Ren'Py's Python needs the real ones.
     stagedFiles: [],
     // EXEs found among stagedFiles, populated for the entry-EXE picker.
     candidateExes: [],
@@ -136,6 +138,9 @@
     // The variant the preflight replaced, so picking a different file can put
     // the visitor's own choice back rather than leaving ours in place.
     autoSwitchedFrom: null,
+    // A Ren'Py game among the staged files (detectRenpy), which Run starts on
+    // Ren'Py's web engine instead of Wine.
+    renpy: null,
   };
 
   // ─── helpers ───────────────────────────────────────────────────────────
@@ -835,6 +840,8 @@
     els.runBtn.disabled = true;
     state.entrySource = null;
     state.preflight = null;
+    state.renpy = null;
+    stopRenpy();
     showPreflight(null);
     showHandoffNotice(null);
     if (!state.booted) showScreenMessage(null);
@@ -843,6 +850,17 @@
   // After stagedFiles is populated, find EXEs, refresh the entry-picker, and
   // default to the only one (or the first if multiple).
   function refreshEntryPicker() {
+    state.renpy = detectRenpy(state.stagedFiles);
+    if (state.renpy) {
+      // Run doesn't use the .exe (runRenpy), so there is nothing to choose
+      // between among it and the Python ones in lib/.
+      const g = state.renpy;
+      const exe = state.stagedFiles.find((f) => f.raw && f.raw.toLowerCase() === (g.prefix + g.name + ".exe").toLowerCase());
+      state.candidateExes = exe ? [exe] : [];
+      els.entryPickerWrap.hidden = true;
+      setEntry(exe || g.launcher);
+      return;
+    }
     state.candidateExes = state.stagedFiles
       .filter((f) => /\.(exe|bat)$/i.test(f.path))
       .sort((a, b) => {
@@ -932,6 +950,194 @@
       kase: machine === 0x8664 ? "x64" : "cpu",
       cpu: PE_MACHINE_NAMES[machine] || "0x" + machine.toString(16).padStart(4, "0"),
     };
+  }
+
+  // ─── Ren'Py games ──────────────────────────────────────────────────────
+  // A Ren'Py game for Windows is <name>.exe and <name>.py next to renpy/,
+  // game/ and lib/. The .exe is a small launcher for the 64-bit Python in
+  // lib/py3-windows-x86_64 (Ren'Py 8 has no 32-bit Windows build), so Wine
+  // here refuses it. Ren'Py ships the same engine built for the web, though,
+  // and its own web build only repackages files the game already has: main.py
+  // (<name>.py), renpy/ as compiled Python, and game/. So Run packs exactly
+  // that, in the browser, and opens Ren'Py's web runtime on it
+  // (public/renpy/, fetched by scripts/build-renpy-web.mjs).
+  //
+  // The compiled renpy/ files have to come from the same Ren'Py as the
+  // runtime's wasm, so each version needs its own runtime.
+  const RENPY_RUNTIMES = {
+    "8.5.3": { base: "/renpy/8.5.3/", pycTag: ".cpython-312.pyc" },
+  };
+  const RENPY_SUPPORTED = Object.keys(RENPY_RUNTIMES).join(", ");
+
+  function detectRenpy(files) {
+    const vc = files.find((f) => f.raw && /(^|\/)renpy\/vc_version\.py$/.test(f.raw));
+    if (!vc) return null;
+    const prefix = vc.raw.slice(0, vc.raw.length - "renpy/vc_version.py".length);
+    const top = (f) => f.raw && f.raw.startsWith(prefix) ? f.raw.slice(prefix.length) : null;
+    if (!files.some((f) => (top(f) || "").startsWith("game/"))) return null;
+    const pys = files.filter((f) => /^[^/]+\.py$/.test(top(f) || ""));
+    const exes = new Set(files.map(top).filter((r) => r && /^[^/]+\.exe$/i.test(r)).map((r) => r.slice(0, -4).toLowerCase()));
+    const launcher = pys.length === 1 ? pys[0] : pys.find((f) => exes.has(top(f).slice(0, -3).toLowerCase()));
+    if (!launcher) return null;
+    const m = /\bversion\s*=\s*['"](\d+\.\d+\.\d+)/.exec(new TextDecoder().decode(vc.bytes));
+    return { prefix, launcher, name: top(launcher).slice(0, -3), version: m ? m[1] : null };
+  }
+
+  // The launcher .exe on its own: it loads lib\py3-…\librenpython.dll, and
+  // nothing else carries that name.
+  function isRenpyLauncher(bytes) {
+    if (!bytes || bytes.length > 4 * 1024 * 1024 || peMachine(bytes) == null) return false;
+    const want = Array.from("librenpython", (c) => c.charCodeAt(0));
+    outer: for (let i = 0; i + want.length * 2 <= bytes.length; i++) {
+      for (let j = 0; j < want.length; j++) {
+        if (bytes[i + j * 2] !== want[j] || bytes[i + j * 2 + 1] !== 0) continue outer;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  // What Ren'Py's own web build (launcher/game/web.rpy) puts in game.zip:
+  // main.py, renpy/ with each __pycache__/*.cpython-3xx.pyc moved up beside
+  // its module and the .py dropped, and game/. game/cache is left out (Ren'Py
+  // rebuilds it); a .py with no compiled copy is kept so it can still import.
+  function renpyGameZipEntries(g, rt) {
+    const rows = [];
+    for (const f of state.stagedFiles) {
+      if (!f.raw || !f.raw.startsWith(g.prefix)) continue;
+      const rel = f.raw.slice(g.prefix.length);
+      if (/(^|\/)(\.DS_Store|\._[^/]*)$/.test(rel)) continue;
+      if (rel.startsWith("renpy/") || (rel.startsWith("game/") && !rel.startsWith("game/cache/"))) rows.push({ rel, f });
+    }
+    const pyc = (rel) => rel.replace("__pycache__/", "").slice(0, -rt.pycTag.length) + ".pyc";
+    const compiled = new Set(rows.filter((r) => r.rel.includes("/__pycache__/") && r.rel.endsWith(rt.pycTag))
+      .map((r) => pyc(r.rel).slice(0, -1)));
+    const out = [{ name: "main.py", bytes: g.launcher.bytes }];
+    for (const { rel, f } of rows) {
+      if (rel.startsWith("renpy/")) {
+        if (rel.includes("/__pycache__/")) {
+          if (rel.endsWith(rt.pycTag)) out.push({ name: pyc(rel), bytes: f.bytes });
+          continue;
+        }
+        if (rel.endsWith(".py") && compiled.has(rel)) continue;
+      }
+      out.push({ name: rel, bytes: f.bytes });
+    }
+    return out;
+  }
+
+  // A stored (uncompressed) zip, built as a Blob from the staged arrays
+  // rather than one more contiguous copy of a game that can run to hundreds
+  // of MB. Ren'Py's Python checks each entry's CRC when it unpacks.
+  const CRC_TABLE = (() => {
+    const t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+      t[n] = c >>> 0;
+    }
+    return t;
+  })();
+  function crc32(b) {
+    let c = 0xffffffff;
+    for (let i = 0; i < b.length; i++) c = CRC_TABLE[(c ^ b[i]) & 0xff] ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  }
+  function storeZip(entries) {
+    if (entries.length > 0xffff) throw new Error(`${entries.length} files is more than a zip without zip64 holds`);
+    const enc = new TextEncoder();
+    const parts = [], central = [];
+    let offset = 0;
+    for (const { name, bytes } of entries) {
+      const nm = enc.encode(name);
+      const crc = crc32(bytes);
+      const lh = new DataView(new ArrayBuffer(30));
+      lh.setUint32(0, 0x04034b50, true);
+      lh.setUint16(4, 20, true);
+      lh.setUint16(6, 0x0800, true); // names are UTF-8
+      lh.setUint16(12, 0x0021, true); // 1980-01-01
+      lh.setUint32(14, crc, true);
+      lh.setUint32(18, bytes.length, true);
+      lh.setUint32(22, bytes.length, true);
+      lh.setUint16(26, nm.length, true);
+      parts.push(lh, nm, bytes);
+      const cd = new DataView(new ArrayBuffer(46));
+      cd.setUint32(0, 0x02014b50, true);
+      cd.setUint16(4, 20, true);
+      cd.setUint16(6, 20, true);
+      cd.setUint16(8, 0x0800, true);
+      cd.setUint16(14, 0x0021, true);
+      cd.setUint32(16, crc, true);
+      cd.setUint32(20, bytes.length, true);
+      cd.setUint32(24, bytes.length, true);
+      cd.setUint16(28, nm.length, true);
+      cd.setUint32(42, offset, true);
+      central.push(cd, nm);
+      offset += 30 + nm.length + bytes.length;
+      if (offset > 0xffffffff) throw new Error("the game is over 4 GB, more than a zip without zip64 holds");
+    }
+    const cdSize = central.reduce((n, p) => n + p.byteLength, 0);
+    const end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0, 0x06054b50, true);
+    end.setUint16(8, entries.length, true);
+    end.setUint16(10, entries.length, true);
+    end.setUint32(12, cdSize, true);
+    end.setUint32(16, offset, true);
+    return new Blob([...parts, ...central, end], { type: "application/zip" });
+  }
+
+  function renpyVars() {
+    return { version: (state.renpy && state.renpy.version) || "?", supported: RENPY_SUPPORTED };
+  }
+
+  async function runRenpy() {
+    const g = state.renpy;
+    const rt = RENPY_RUNTIMES[g.version];
+    if (!rt) {
+      log(`Not started: this is a Ren'Py ${g.version || "(unknown version)"} game, and this page has Ren'Py's web engine for ${RENPY_SUPPORTED} only.`, "warn");
+      setStatus(T("runBlockedStatus", "Not started — see the message above."));
+      showScreenMessage({ kase: "renpy_version" });
+      els.screenContainer.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      track("preflight_action", { action: "blocked_renpy_version" });
+      return;
+    }
+    els.runBtn.disabled = true;
+    setStatus(T("renpyPacking", "Packing the game for Ren'Py's web engine…"));
+    await new Promise((r) => setTimeout(r, 0)); // let the status paint first
+    let blob;
+    try {
+      const entries = renpyGameZipEntries(g, rt);
+      blob = storeZip(entries);
+      log(`Ren'Py ${g.version} game "${g.name}": packed ${entries.length} files into a ${formatBytes(blob.size)} game.zip for Ren'Py's web engine. Wine isn't used.`);
+    } catch (err) {
+      log("Could not pack the Ren'Py game: " + err.message, "error");
+      setStatus(T("wineBootFailed", "Boot failed. See console."));
+      els.runBtn.disabled = false;
+      return;
+    }
+    stopRenpy();
+    showScreenMessage(null);
+    window.__exeBrowserRenpyZip = URL.createObjectURL(blob);
+    const frame = document.createElement("iframe");
+    frame.id = "renpy-frame";
+    frame.className = "renpy-frame";
+    frame.title = g.name;
+    frame.allow = "autoplay; fullscreen";
+    frame.src = rt.base;
+    if (els.canvas) els.canvas.style.display = "none";
+    els.screenContainer.append(frame);
+    els.screenContainer.classList.add("has-content");
+    els.screenContainer.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    frame.focus();
+    setStatus(T("renpyRunning", "Running {name} on Ren'Py {version}…", { name: g.name, version: g.version }));
+    track("renpy_run", { version: g.version, size_mb: Math.round(blob.size / 1e6) });
+  }
+
+  function stopRenpy() {
+    document.getElementById("renpy-frame")?.remove();
+    if (window.__exeBrowserRenpyZip) URL.revokeObjectURL(window.__exeBrowserRenpyZip);
+    window.__exeBrowserRenpyZip = null;
+    if (els.canvas) els.canvas.style.display = "";
   }
 
   // ─── preflight: read the visitor's EXE before booting it ───────────────
@@ -1033,7 +1239,15 @@
     crt: ["pfCrt", "It needs DLLs that came with it",
       "pfCrtBody", "This program uses {dll}, a Visual C++ runtime that is not part of Windows. Load its whole folder instead of the lone .exe, so those DLLs come too."],
   };
-  const PF_BAD = new Set(["x64", "dos", "not_exe", "damaged", "cpu", "driver", ".net", "dll"]);
+  Object.assign(PF_TEXT, {
+    renpy: ["pfRenpy", "Ren'Py game — runs on Ren'Py's own engine",
+      "pfRenpyBody", "Made with Ren'Py {version}. Run starts it on Ren'Py's web engine instead of Wine, so its 64-bit launcher doesn't matter. Only the game's own folders are used, and they stay on this device."],
+    renpy_version: ["pfRenpyVersion", "Ren'Py {version} game — not supported yet",
+      "pfRenpyVersionBody", "Ren'Py games run here on Ren'Py's own web engine, and this page has version {supported} of it. A game's Ren'Py files have to match that version, so Run will not start this one."],
+    renpy_launcher: ["pfRenpyLauncher", "The launcher of a Ren'Py game",
+      "pfRenpyLauncherBody", "This .exe only starts the Python that comes with the game; the game itself is the folder around it. Pick the whole folder, or a zip of it, and it runs here on Ren'Py's web engine."],
+  });
+  const PF_BAD = new Set(["x64", "dos", "not_exe", "damaged", "cpu", "driver", ".net", "dll", "renpy_version", "renpy_launcher"]);
 
   function preflightBox() {
     let box = document.getElementById("preflight");
@@ -1058,10 +1272,11 @@
     if (!kase) return;
     const t = PF_TEXT[kase];
     const head = document.createElement("strong");
-    head.textContent = T(t[0], t[1]);
+    const vars = kase === "crt" ? { dll: (enrichment && enrichment.crtDll) || "a Visual C++ runtime" }
+      : kase.startsWith("renpy") ? renpyVars() : undefined;
+    head.textContent = T(t[0], t[1], vars);
     const body = document.createElement("p");
-    const bodyVars = kase === "crt" ? { dll: (enrichment && enrichment.crtDll) || "a Visual C++ runtime" } : undefined;
-    body.textContent = T(t[2], t[3], bodyVars);
+    body.textContent = T(t[2], t[3], vars);
     box.append(head, body);
 
     // What the file claims to be, read from the exact parse this banner's
@@ -1128,7 +1343,7 @@
       });
     }
     if (kase === "installer") link("/run/extract-archive/", "pfExtract", "Extract the files instead →", "extract");
-    if (kase === "crt" || kase === "dll") {
+    if (kase === "crt" || kase === "dll" || kase === "renpy_launcher") {
       const b = document.createElement("button");
       b.type = "button";
       b.className = "linklike";
@@ -1142,7 +1357,7 @@
     if (actions.childNodes.length) box.append(actions);
     // "Headers are occasionally wrong" is not true of the Machine field: Wine
     // reads it too, and Run won't start the file (archBlock).
-    if (PF_BAD.has(kase) && !archBlock(state.pickedExe && state.pickedExe.bytes)) {
+    if (PF_BAD.has(kase) && !kase.startsWith("renpy") && !archBlock(state.pickedExe && state.pickedExe.bytes)) {
       const note = document.createElement("p");
       note.className = "muted small";
       note.textContent = T("pfRunAnyway", "You can still press Run — this is read from the file's headers, and they are occasionally wrong.");
@@ -1173,6 +1388,10 @@
     if (child) {
       head.textContent = T("runChildX64", "It tried to start a 64-bit program");
       body.textContent = T("runChildX64Body", "Wine here is a 32-bit build, so it refused to start {name}, which is 64-bit. If that program has a 32-bit (x86) build, put that in the folder instead.", { name: child });
+    } else if (block.kase.startsWith("renpy")) {
+      const t = PF_TEXT[block.kase];
+      head.textContent = T(t[0], t[1], renpyVars());
+      body.textContent = T(t[2], t[3], renpyVars());
     } else if (block.kase === "x64") {
       head.textContent = T("runBlockedX64", "64-bit program — not started");
       body.textContent = T("runBlockedX64Body", "Wine on this page is a 32-bit build. It checks the same header field Windows does and refuses 64-bit programs, so starting this would only end on a blank screen. If the download page offers a 32-bit (x86) build of the same version, that one usually runs here.");
@@ -1241,6 +1460,14 @@
   function preflight(stagedFile) {
     state.preflight = null;
     showPreflight(null);
+    const rk = state.renpy ? (RENPY_RUNTIMES[state.renpy.version] ? "renpy" : "renpy_version")
+      : isRenpyLauncher(stagedFile.bytes) ? "renpy_launcher" : null;
+    if (rk) {
+      log(state.renpy ? `Preflight: Ren'Py ${state.renpy.version || "?"} game "${state.renpy.name}".` : "Preflight: the launcher of a Ren'Py game, without the game.");
+      showPreflight(rk);
+      track("preflight_shown", { preflight: rk, format: "renpy", arch: "n/a", verdict: rk });
+      return;
+    }
     if (!window.PEInspect || !/\.exe$/i.test(stagedFile.path)) return;
     let p, info, v;
     try {
@@ -1333,7 +1560,7 @@
       if (!safe) continue;
       const bytes = new Uint8Array(await f.arrayBuffer());
       if (/\.exe$/i.test(safe)) warnIfNotPe(safe, bytes);
-      state.stagedFiles.push({ path: safe, bytes });
+      state.stagedFiles.push({ path: safe, bytes, raw: stripped });
     }
     log(`Loaded folder: ${files.length} files staged.`);
     state.entrySource = "folder";
@@ -1355,7 +1582,7 @@
       if (!safe) continue;
       const bytes = await readZipEntry(zip, e);
       if (/\.exe$/i.test(safe)) warnIfNotPe(safe, bytes);
-      state.stagedFiles.push({ path: safe, bytes });
+      state.stagedFiles.push({ path: safe, bytes, raw: e.path });
     }
     log(`Loaded zip: ${state.stagedFiles.length} files extracted.`);
     state.entrySource = "zip";
@@ -1961,6 +2188,15 @@
     if (state.bootInFlight) return;
     if (!state.pickedExe) {
       log("Pick an EXE first.", "error");
+      return;
+    }
+    if (state.renpy) return runRenpy();
+    if (isRenpyLauncher(state.pickedExe.bytes)) {
+      log(`Not started: ${state.pickedExe.path} is the launcher of a Ren'Py game, and the game is the folder around it.`, "warn");
+      setStatus(T("runBlockedStatus", "Not started — see the message above."));
+      showScreenMessage({ kase: "renpy_launcher" });
+      els.screenContainer.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      track("preflight_action", { action: "blocked_renpy_launcher" });
       return;
     }
 

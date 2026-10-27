@@ -28,7 +28,7 @@ const ROOT = resolve(process.cwd(), "public");
 // Runtime payload trees — machine-generated assets, not pages.
 // `embed` is excluded deliberately: those pages are bare iframe wrappers with
 // no site chrome, so none of the head/nav injections below apply to them.
-const SKIP_DIRS = new Set(["64", "boxedwine", "apps", "dosbox", "dosbox-snap", "data"]);
+const SKIP_DIRS = new Set(["64", "boxedwine", "apps", "dosbox", "dosbox-snap", "data", "renpy"]);
 
 function htmlFiles(dir, rel = "") {
   const out = [];

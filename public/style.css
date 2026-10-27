@@ -278,6 +278,15 @@ progress::-moz-progress-bar { background: var(--accent); }
 /* The JIT engine's 2D layer over #canvas (app.js presentCanvas); input
    still lands on #canvas underneath. */
 .present-canvas { position: absolute; pointer-events: none; z-index: 1; }
+/* A Ren'Py game on Ren'Py's web runtime (app.js runRenpy), in place of the
+   Wine canvas. Ren'Py scales to the frame it gets; 16:9 is its default. */
+.renpy-frame {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  background: black;
+}
 
 #screen-empty-state {
   position: absolute;

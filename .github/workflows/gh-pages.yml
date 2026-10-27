@@ -33,17 +33,19 @@ jobs:
       - id: pages
         uses: actions/configure-pages@v6
 
-      # The Wine roots (~210 MB) and the LibreQuake and Warzone 2100 data
-      # (~165 MB) are downloaded into this gitignored folder, each checked
-      # against a pinned sha256, so the cache only saves the download.
+      # The Wine roots and /64/'s engine (~435 MB), the LibreQuake and
+      # Warzone 2100 data (~165 MB) and Ren'Py's web runtime (~37 MB) are
+      # downloaded into this gitignored folder, each checked against a pinned
+      # sha256, so the cache only saves the download.
       - uses: actions/cache@v6
         with:
           path: assets-too-big-for-pages
-          key: gh-pages-${{ hashFiles('scripts/build-gh-pages.mjs', 'scripts/build-librequake-data.mjs', 'scripts/build-warzone2100-data.mjs') }}
+          key: gh-pages-${{ hashFiles('scripts/build-gh-pages.mjs', 'scripts/build-librequake-data.mjs', 'scripts/build-warzone2100-data.mjs', 'scripts/build-renpy-web.mjs') }}
           restore-keys: gh-pages-
 
       - run: node scripts/build-librequake-data.mjs
       - run: node scripts/build-warzone2100-data.mjs
+      - run: node scripts/build-renpy-web.mjs
       - run: node scripts/build-gh-pages.mjs --base "${{ steps.pages.outputs.base_path }}/"
 
       - uses: actions/upload-pages-artifact@v5

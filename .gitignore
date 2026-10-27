@@ -29,5 +29,13 @@ public/apps/warzone2100/warzone2100.wasm
 public/apps/warzone2100/warzone2100.data.part[0-9]*
 public/apps/warzone2100/pkg/*/*.data
 
+# Ren'Py's web runtime (~37 MB). Not committed: rebuild with
+# node scripts/build-renpy-web.mjs (pinned release + sha256). index.html and
+# NOTICE.md there ARE committed.
+public/renpy/*/renpy.js
+public/renpy/*/renpy.wasm
+public/renpy/*/renpy.data
+public/renpy/*/renpy-pre.js
+
 # build output of scripts/build-gh-pages.mjs
 _site/

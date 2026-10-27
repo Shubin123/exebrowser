@@ -32,6 +32,15 @@ on emulator performance and on what happens with 64-bit programs. From
 - **A GitHub Pages copy**, at https://shubin123.github.io/exebrowser/, so the
   fork's changes can be tried without a Cloudflare account. See
   [GitHub Pages](#github-pages).
+- **Ren'Py games run.** A Ren'Py game's `.exe` only launches the 64-bit
+  Python it bundles, so Wine here can't start it. Picking the game's folder,
+  or a zip of it, now runs it on Ren'Py's official web runtime instead. The
+  loader packs `game.zip` in the browser the way Ren'Py's own web build does
+  (`main.py`, the compiled `renpy/`, and `game/`), and nothing is uploaded.
+  The runtime is Ren'Py 8.5.3, fetched by `scripts/build-renpy-web.mjs`. A
+  game's `renpy/` files have to match it, so games made with other Ren'Py
+  versions get a message saying so. Picking only the launcher `.exe` explains
+  that the game is the folder.
 - **The 64-bit hand-off works.** The file you pick on `/load-exe/` now runs
   in `/64/`, on exebrowser.com too. Before, `/64/` booted only
   `wine64 --version` and wrote the file before the Wine prefix's home
@@ -191,6 +200,7 @@ before `wrangler pages deploy`**, or the deploy ships a page whose game 404s:
 ```bash
 node scripts/build-librequake-data.mjs   # public/apps/librequake/id1/ (~79 MB)
 node scripts/build-warzone2100-data.mjs  # public/apps/warzone2100/ parts, wasm, music (~87 MB)
+node scripts/build-renpy-web.mjs         # public/renpy/8.5.3/ Ren'Py's web runtime (~37 MB)
 ```
 
 ### The logic puzzles
@@ -321,9 +331,10 @@ which you can run yourself (`node scripts/build-gh-pages.mjs`, output in
   becomes a page pointing at exebrowser.com/64/, and the Actions run carries a
   warning.
 
-The workflow also runs the LibreQuake and Warzone 2100 data scripts, so the
-copy has their gitignored data. All of it comes to ~905 MB, under GitHub
-Pages' 1 GB limit. Canonical links still point at exebrowser.com.
+The workflow also runs the LibreQuake, Warzone 2100 and Ren'Py web-runtime
+scripts, so the copy has their gitignored files. All of it comes to ~941 MB,
+under GitHub Pages' 1 GB limit, so there is little room left. Canonical links
+still point at exebrowser.com.
 
 ## Refreshing the runtime
 
