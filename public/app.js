@@ -71,6 +71,13 @@
       loadMode: "ondemand",
       rootBaseUrl: "/api/bwfs/",
       rootBasename: "TinyCore15Wine11.0-web",
+      // The 512 KB pieces of that root every boot reads (58 MB of 99.5 MB),
+      // fetched in parallel before the emulator starts instead of one
+      // blocking request at a time: at 60 ms a round trip, one at a time took
+      // the first window from 10.5 s to 18 s. Tied to the pinned file in
+      // functions/api/bwfs/; the log prints the pieces read beyond it.
+      rootBootChunks: "0-5,7-11,13-16,18-36,39-43,59,61,63-69,72-73,85-86,89-92,94,96-114,116-117,121-126," +
+        "132-135,137-139,147-156,167-168,170-176,184-189",
     },
     r18: {
       label: "Boxedwine 18R2 (experimental, inline, 19 MB)",
@@ -591,7 +598,8 @@
         if (filename === Config.appZipFile) {
           window.__exeBrowserAppZip().then(callback);
         } else if (filename === Config.rootZipFile) {
-          callback(null); // createFile below mounts it lazily
+          // createFile below mounts it lazily, once the boot pieces are in
+          window.__exeBrowserPreloadRoot().then(function () { callback(null); });
         } else {
           fetch(prefix + filename)
             .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.arrayBuffer(); })
@@ -602,7 +610,7 @@
       var __bwCreateFile = createFile;
       createFile = function (dir, name, buf) {
         if (buf === null && name === Config.rootZipFile) {
-          window.__exeBrowserRangeFile(FS, dir, name, ${JSON.stringify(rootUrl)});
+          window.__exeBrowserRangeFile(FS, dir, name, ${JSON.stringify(rootUrl)}, window.__exeBrowserRootPreload);
         } else {
           __bwCreateFile(dir, name, buf);
         }
@@ -621,6 +629,8 @@
     window.__exeBrowserAppZip = () => state.appZipBlob.arrayBuffer().then((b) => new Uint8Array(b));
     window.__exeBrowserFetched = bumpFetchProgress;
     window.__exeBrowserRangeFile = createRangeFile;
+    window.__exeBrowserPreloadRoot = () => preloadRange(rootUrl, variant.rootBootChunks || "")
+      .then((p) => { window.__exeBrowserRootPreload = p; });
     window.__exeBrowserBootError = (what, err) => {
       log(`Boot failed: could not load ${what} (${err.message}).`, "error");
       setStatus(T("wineBootFailed", "Boot failed. See console."));
@@ -676,9 +686,45 @@
   // bytes through responseText unmangled instead (as browserfs.boxedwine.js
   // does for the default engine). Chunks are kept for the session.
   const RANGE_CHUNK = 512 * 1024;
-  function createRangeFile(FS, dir, name, url) {
-    let size = -1;
+  let rangeLazy = null; // piece numbers read on demand, for the log
+
+  // The pieces listed in spec ("0-5,7,9-12"), fetched six at a time. A
+  // failure only costs the speed-up: those pieces are read on demand.
+  async function preloadRange(url, spec) {
+    const want = [];
+    for (const part of spec.split(",").filter(Boolean)) {
+      const [a, b = a] = part.split("-").map(Number);
+      for (let n = a; n <= b; n++) want.push(n);
+    }
     const chunks = new Map();
+    let size = -1;
+    let next = 0;
+    const worker = async () => {
+      while (next < want.length) {
+        const n = want[next++];
+        // Its own URL per piece: Chrome's HTTP cache lets one request per URL
+        // through at a time, which made these four workers take turns.
+        const r = await fetch(url + "?piece=" + n, { headers: { Range: `bytes=${n * RANGE_CHUNK}-${(n + 1) * RANGE_CHUNK - 1}` } });
+        if (r.status !== 206) throw new Error(`HTTP ${r.status}`);
+        const total = /\/(\d+)$/.exec(r.headers.get("Content-Range") || "");
+        if (total) size = +total[1];
+        const bytes = new Uint8Array(await r.arrayBuffer());
+        chunks.set(n, bytes);
+        bumpFetchProgress(bytes.length);
+      }
+    };
+    try {
+      await Promise.all([0, 1, 2, 3, 4, 5].map(worker));
+    } catch (err) {
+      log(`Preloading the Wine root failed (${err.message}); reading it on demand instead.`, "warn");
+    }
+    return { chunks, size };
+  }
+
+  function createRangeFile(FS, dir, name, url, preload) {
+    let size = preload && preload.size > 0 ? preload.size : -1;
+    const chunks = preload ? preload.chunks : new Map();
+    rangeLazy = [];
     const get = (from, to) => {
       const xhr = new XMLHttpRequest();
       xhr.open("GET", url, false);
@@ -705,10 +751,11 @@
       if (!c) {
         c = get(n * RANGE_CHUNK, Math.min(size, (n + 1) * RANGE_CHUNK) - 1);
         chunks.set(n, c);
+        rangeLazy.push(n);
       }
       return c;
     };
-    chunks.set(0, get(0, RANGE_CHUNK - 1)); // also learns the size
+    if (size < 0) chunks.set(0, get(0, RANGE_CHUNK - 1)); // also learns the size
     const node = FS.createFile(dir, name, { isDevice: false }, true, false);
     Object.defineProperty(node, "usedBytes", { get: () => size });
     node.stream_ops = Object.assign({}, node.stream_ops, {
@@ -1967,6 +2014,7 @@
         state.frameOutcome = outcome;
         setFetchStatusText("");
         log(`First frame: ${outcome} after ${ms} ms.`);
+        if (rangeLazy) log(`Wine root pieces read on demand so far, beyond the boot preload: ${rangeLazy.length ? rangeLazy.join(",") : "none"}.`);
         if (byo) track("byo_result", Object.assign({ outcome, ttff_ms: ms }, byoParams()));
         else track("first_frame", { outcome, ttff_ms: ms });
       }, makeFrameWaitTicker());
