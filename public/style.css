@@ -265,6 +265,10 @@ progress::-moz-progress-bar { background: var(--accent); }
 }
 
 #screen { width: 100%; }
+/* Always empty. As a 100%-wide flex item it took whatever width #canvas left
+   over and pushed a narrower canvas (the JIT engine sizes it to a game's
+   GL window) off-centre. */
+#screen:empty { display: none; }
 #canvas {
   display: block;
   max-width: 100%;
