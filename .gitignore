@@ -28,3 +28,6 @@ public/apps/librequake/id1/
 public/apps/warzone2100/warzone2100.wasm
 public/apps/warzone2100/warzone2100.data.part[0-9]*
 public/apps/warzone2100/pkg/*/*.data
+
+# build output of scripts/build-gh-pages.mjs
+_site/

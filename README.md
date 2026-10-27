@@ -29,6 +29,9 @@ on emulator performance and on what happens with 64-bit programs. From
   parallel before starting, instead of one blocking request at a time.
 - **A centred canvas.** A canvas narrower than its frame (the JIT engine
   sizes it to a game's GL window) now stays centred.
+- **A GitHub Pages copy**, at https://shubin123.github.io/exebrowser/, so the
+  fork's changes can be tried without a Cloudflare account. See
+  [GitHub Pages](#github-pages).
 
 ### Measured (headless Chrome, Apple M4)
 
@@ -283,6 +286,30 @@ npx wrangler pages deploy public --project-name=exebrowser --branch=main
 Then in the Cloudflare dashboard:
 1. Add custom domain `exebrowser.com` and `www.exebrowser.com`
 2. Verify `_headers` is applied (COOP/COEP must be present for SharedArrayBuffer)
+
+### GitHub Pages
+
+`.github/workflows/gh-pages.yml` publishes a copy on every push to `main`,
+at `https://<owner>.github.io/<repo>/`. In the repo settings, Pages' source
+must be "GitHub Actions". The copy is built by `scripts/build-gh-pages.mjs`,
+which you can run yourself (`node scripts/build-gh-pages.mjs`, output in
+`_site/`). It changes four things:
+
+- **The base path.** The site is served under `/<repo>/`, so the build
+  prefixes the site's absolute paths. It leaves the third-party runtimes
+  alone, apart from patching ScummVM's data fetches.
+- **The Wine roots.** There are no Functions. The four roots that `/api/fs/`,
+  `/api/overlay/` and `/api/bwfs/` proxy (~210 MB, pinned by sha256) are served
+  from `boxedwine/fs/` next to the pages. GitHub Pages answers Range requests,
+  so both engines still read them on demand.
+- **What's left out.** Upstream's Google Analytics and Mediavine tags, which
+  carry exebrowser.com's account IDs, are removed. So is the newsletter form,
+  which posts to a Function.
+- **`/64/`.** Its wasm and file systems aren't in git, so on this copy `/64/`
+  is a page pointing at exebrowser.com/64/.
+
+The workflow also runs the LibreQuake and Warzone 2100 data scripts, so the
+copy has their gitignored data. Canonical links still point at exebrowser.com.
 
 ## Refreshing the runtime
 

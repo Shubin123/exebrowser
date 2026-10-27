@@ -1,0 +1,61 @@
+# Publishes the site to GitHub Pages, at https://<owner>.github.io/<repo>/.
+#
+# scripts/build-gh-pages.mjs turns public/ (written for Cloudflare Pages at the
+# root of a domain) into a copy that works under the repo's path with no
+# Functions; see the top of that script for what it changes and why.
+
+name: GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - id: pages
+        uses: actions/configure-pages@v5
+
+      # The Wine roots (~210 MB) and the LibreQuake and Warzone 2100 data
+      # (~165 MB) are downloaded into this gitignored folder, each checked
+      # against a pinned sha256, so the cache only saves the download.
+      - uses: actions/cache@v4
+        with:
+          path: assets-too-big-for-pages
+          key: gh-pages-${{ hashFiles('scripts/build-gh-pages.mjs', 'scripts/build-librequake-data.mjs', 'scripts/build-warzone2100-data.mjs') }}
+          restore-keys: gh-pages-
+
+      - run: node scripts/build-librequake-data.mjs
+      - run: node scripts/build-warzone2100-data.mjs
+      - run: node scripts/build-gh-pages.mjs --base "${{ steps.pages.outputs.base_path }}/"
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
